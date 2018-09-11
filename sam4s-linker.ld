@@ -1,0 +1,95 @@
+/**
+ * Copyright 2018 Nickolas T Lloyd <ultrageek.lloyd@gmail.com>
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice,
+ * this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ * this list of conditions and the following disclaimer in the documentation
+ * and/or other materials provided with the distribution.
+ *
+ * 3. Neither the name of the copyright holder nor the names of its contributors
+ * may be used to endorse or promote products derived from this software without
+ * specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
+
+MEMORY
+{
+	rom (rx)  : ORIGIN = 0x00400000, LENGTH = 0x00100000
+	ram (rwx) : ORIGIN = 0x20000000, LENGTH = 0x00020000
+}
+
+SECTIONS
+{
+	.text : {
+			arm/interrupt_table.o(.text)
+			arm/interrupt_handlers.o(.text)
+	      		main.o(.text)
+			arm/arm.o(.text)
+			atmel/atmel_init.o(.text)
+			atmel/atmel_timer.o(.text)
+			atmel/atmel_usb.o(.text)
+			atmel/sam.o(.text)
+			atmel/sam_usb.o(.text)
+			usb.o(.text)
+			usbtmc.o(.text)
+			mm.o(.text)
+			*(.rodata)
+			*(.got)
+      			*(.data)
+     			*(.bss)
+			end.o(.text)
+	} > rom
+	.note.gnu.build-id 0 : {
+			*(.note.gnu.build-id)
+	}
+	.debug_arranges 0 : {
+			*(.debug_arranges)
+	}
+	.debug_info 0 : {
+			*(.debug_info)
+	}
+	.debug_abbrev 0 : {
+			*(.debug_abbrev)
+	}
+	.debug_line 0 : {
+			*(.debug_line)
+	}
+	.debug_frame 0 : {
+			*(.debug_frame)
+	}
+	.debug_str 0 : {
+			*(.debug_str)
+	}
+	.debug_loc 0 : {
+			*(.debug_loc)
+	}
+	.debug 0 : {
+			*(.debug)
+	}
+	.line 0 : {
+			*(.line)
+	}
+	.debug_srcinfo 0 : {
+			*(.debug_srcinfo)
+	}
+	.debug_sfnames 0 : {
+			*(.debug_sfnames)
+	}
+}
+

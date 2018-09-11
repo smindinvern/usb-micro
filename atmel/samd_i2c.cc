@@ -142,7 +142,7 @@ void samd_i2c_set_address(unsigned short address)
 	bool rw{ addr_value & 0x1 };
 	addr = (addr_value & ~0x7FF) | (address & 0x3FF) | rw;
 }
-void i2c_send_repeat_start(unsigned short address)
+void samd_i2c_send_repeat_start(unsigned short address)
 {
 	if (address != samd_i2c_get_address()) {
 		samd_i2c_set_address(address);
@@ -152,9 +152,41 @@ void i2c_send_repeat_start(unsigned short address)
 		ctrlb = (ctrlb & CTRLB_WR_MASK) | (0x2 << 16);
 	}
 }
-void i2c_send_stop()
+void samd_i2c_send_stop()
 {
 	Reg32 ctrlb{ I2C_CTRLB };
 	ctrlb = (ctrlb & CTRLB_WR_MASK) | (0x3 << 16);
 }
+
+enum samd_i2c_bus_state {
+	I2C_UNKNOWN = 0x00,
+	I2C_IDLE = 0x01,
+	I2C_OWNER = 0x02,
+	I2C_BUSY = 0x03
+};
+
+samd_i2c_bus_state samd_i2c_get_bus_state()
+{
+	Reg16 status{ I2C_STATUS };
+	return reinterpret_cast<samd_i2c_bus_state>((status & 0x0030) >> 4);
+}
+
+bool samd_i2c_rx_acked()
+{
+	Reg16 status{ I2C_STATUS };
+	return !(status & (1 << 2));
+}
+
+bool samd_i2c_arb_lost()
+{
+	Reg16 status{ I2C_STATUS };
+	return status & (1 << 1);
+}
+
+bool samd_i2c_bus_err()
+{
+	Reg16 status{ I2C_STATUS };
+	return status & 1;
+}
+
 #undef CTRLB_WR_MASK

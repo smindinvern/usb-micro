@@ -100,6 +100,9 @@ void samd_enable_i2c_master(unsigned int f_scl_hz, unsigned int f_gclk_hz)
 	ctrla |= (1 << 1);
 	// Wait for synchronization to complete.
 	while ((syncbusy & (1 << 1)) != 0);
+	// Take control of the bus
+	Reg16 status{ I2C_STATUS };
+	status = (status & ~0x0030) | 0x1;
 }
 
 #define CTRLB_WR_MASK ((1 << 18) | (1 << 9) | (1 << 8))

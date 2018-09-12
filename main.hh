@@ -123,9 +123,14 @@ inline volatile struct globals* getGlobals()
 	return reinterpret_cast<volatile struct globals*>(0x20000000);
 }
 
+inline volatile struct i2c_status_info* getI2CStatusInfo()
+{
+	return &getGlobals()->i2c_info;
+}
+
 inline volatile struct usb_status_info* getUSBStatusInfo()
 {
-	return &(getGlobals()->usb_info);
+	return &getGlobals()->usb_info;
 }
 
 template<class T> T& getUSBEndpoint(unsigned char ep)

@@ -233,7 +233,7 @@ void i2c_master_isr()
 	Reg8 intflag{ I2C_INTFLAG };
 	Reg16 status{ I2C_STATUS };
 	Reg16 data{ I2C_DATA };
-	volatile struct i2c_status_info* i2c_info{ &(getGlobals()->i2c_info) };
+	volatile struct i2c_status_info* i2c_info{ getI2CStatusInfo() };
 	
 	if (samd_i2c_get_mb_intflag()) {
 		// Master on bus

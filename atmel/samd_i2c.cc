@@ -199,11 +199,72 @@ bool samd_i2c_bus_err()
 	return status & 1;
 }
 
+bool samd_i2c_err()
+{
+	return samd_i2c_arb_lost() || samd_i2c_bus_err();
+}
+
 #undef CTRLB_WR_MASK
+
+inline bool samd_i2c_get_mb_intflag()
+{
+	Reg8 intflag{ I2C_INTFLAG };
+	return intflag & 1;
+}
+inline bool samd_i2c_get_sb_intflag()
+{
+	Reg8 intflag{ I2C_INTFLAG };
+	return intflag & (1 << 1);
+}
+
+inline void samd_i2c_clear_mb_intflag()
+{
+	Reg8 intflag{ I2C_INTFLAG };
+	intflag &= ~1;
+}
+inline void samd_i2c_clear_sb_intflag()
+{
+	Reg8 intflag{ I2C_INTFLAG };
+	intflag &= ~(1 << 1);
+}
 
 void i2c_master_isr()
 {
-
+	Reg8 intflag{ I2C_INTFLAG };
+	Reg16 status{ I2C_STATUS };
+	Reg16 data{ I2C_DATA };
+	volatile struct i2c_status_info* i2c_info{ &(getGlobals()->i2c_info) };
+	
+	if (samd_i2c_get_mb_intflag()) {
+		// Master on bus
+		if (!samd_i2c_rx_acked()) {
+			samd_i2c_send_stop();
+			i2c_info->error = true;
+		}
+		else { // RX ACKED
+			if (i2c_info->tx_bytes > 0) {
+				data = *(i2c_info->tx_fifo++);
+				i2c_info->tx_bytes--;
+			}
+			else {
+				samd_i2c_send_stop();
+			}
+			i2c_info->error = false;
+		}
+		samd_i2c_clear_mb_intflag();
+	}
+	else if (samd_i2c_get_sb_intflag()) {
+		*(i2c_info->rx_fifo++) = static_cast<unsigned char>(data & 0xFF);
+		i2c_info->rx_bytes--;
+		if (i2c_info->rx_bytes > 0) {
+			__samd_i2c_send_repeat_start();
+		}
+		else {
+			samd_i2c_send_stop();
+		}
+		i2c_info->error = false;
+		samd_i2c_clear_sb_intflag();
+	}
 }
 
 void i2c_slave_isr()

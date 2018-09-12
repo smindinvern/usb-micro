@@ -32,98 +32,97 @@
 #include "samd21_usb.hh"
 
 extern "C" {
-void usb_ep_isr(unsigned int);
-void usb_enable();
+	void usb_ep_isr(unsigned int);
+	void usb_enable();
   
-void nmi(void)
-{
-	return;
-}
-
-void hard_fault(void)
-{
-	return;
-}
-
-void mem_manage_fault(void)
-{
-	while (1);
-}
-
-void bus_fault(void)
-{
-	if (1 == 1)
-		while (1);
-	
-	return;
-}
-
-void usage_fault(void)
-{
-	while (1);
-	
-	return;
-}
-
-void svcall(void)
-{
-	return;
-}
-
-void pendsv(void)
-{
-	return;
-}
-
-void systick(void)
-{
-	return;
-}
-
-void unused_interrupt(void)
-{
-	return;
-}
-
-void watchdog_interrupt(void)
-{
-	return;
-}
-
-void uart0_interrupt(void)
-{
-	return;
-}
-
-void timer_interrupt(void)
-{
-	volatile unsigned int *pio_odsr = (unsigned int *)(0x400e1238);
-	
-	*pio_odsr ^= (1 << 10);
-	
-	return;
-}
-
-void udp_interrupt(void)
-{
-	// Check if this is an EORST interrupt
-	Reg16 intflag{ USB_INTFLAG };
-	if (intflag & (1 << 3)) {
-		volatile struct usb_status_info* usb_status{ getUSBStatusInfo() };
-		usb_status->device->reset();
-		// Clear interrupt
-		intflag = 1 << 3;
+	void nmi(void)
+	{
 		return;
 	}
-	Reg16 epintsmry{ USB_EPINTSMRY };
-	while (epintsmry) {
-		for (int i = 0; i < 16; i++) {
-			if ((epintsmry & (1 << i)) != 0) {
-				usb_ep_isr(i);
+
+	void hard_fault(void)
+	{
+		return;
+	}
+
+	void mem_manage_fault(void)
+	{
+		while (1);
+	}
+
+	void bus_fault(void)
+	{
+		if (1 == 1)
+			while (1);
+	
+		return;
+	}
+
+	void usage_fault(void)
+	{
+		while (1);
+	
+		return;
+	}
+
+	void svcall(void)
+	{
+		return;
+	}
+
+	void pendsv(void)
+	{
+		return;
+	}
+
+	void systick(void)
+	{
+		return;
+	}
+
+	void unused_interrupt(void)
+	{
+		return;
+	}
+
+	void watchdog_interrupt(void)
+	{
+		return;
+	}
+
+	void uart0_interrupt(void)
+	{
+		return;
+	}
+
+	void timer_interrupt(void)
+	{
+		volatile unsigned int *pio_odsr = (unsigned int *)(0x400e1238);
+	
+		*pio_odsr ^= (1 << 10);
+	
+		return;
+	}
+
+	void udp_interrupt(void)
+	{
+		// Check if this is an EORST interrupt
+		Reg16 intflag{ USB_INTFLAG };
+		if (intflag & (1 << 3)) {
+			volatile struct usb_status_info* usb_status{ getUSBStatusInfo() };
+			usb_status->device->reset();
+			// Clear interrupt
+			intflag = 1 << 3;
+			return;
+		}
+		Reg16 epintsmry{ USB_EPINTSMRY };
+		while (epintsmry) {
+			for (int i = 0; i < 16; i++) {
+				if ((epintsmry & (1 << i)) != 0) {
+					usb_ep_isr(i);
+				}
 			}
 		}
+		return;
 	}
-	return;
-}
-
 }

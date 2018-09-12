@@ -193,3 +193,13 @@ bool samd_i2c_bus_err()
 }
 
 #undef CTRLB_WR_MASK
+
+void i2c_master_isr()
+{
+
+}
+
+void i2c_slave_isr()
+{
+
+}

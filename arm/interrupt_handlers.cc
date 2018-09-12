@@ -31,6 +31,9 @@
 #include "main.hh"
 #include "samd21_usb.hh"
 
+void i2c_master_isr();
+void i2c_slave_isr();
+
 extern "C" {
 	void usb_ep_isr(unsigned int);
 	void usb_enable();
@@ -124,5 +127,32 @@ extern "C" {
 			}
 		}
 		return;
+	}
+
+	void sercom0_interrupt()
+	{
+		// Check SERCOM0 mode and call appropriate handler function.
+		Reg32 ctrla{ SERCOM0 };  // CTRLA is the first register of all SERCOM peripherals.
+		unsigned char mode_bits{ static_cast<unsigned char>((ctrla & (0b111 << 2)) >> 2) };
+		switch (mode_bits) {
+		case 0x0:
+			// USART with external clock
+		case 0x1:
+			// USART with internal clock
+			return;
+		case 0x2:
+			// SPI slave
+		case 0x3:
+			// SPI master
+			return;
+		case 0x4:
+			return i2c_slave_isr();
+			// I2C slave
+		case 0x5:
+			// I2C master
+			return i2c_master_isr();
+		default:
+			return;
+		}
 	}
 }

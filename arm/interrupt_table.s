@@ -39,6 +39,7 @@
 .global systick
 .global unused_interrupt
 .global udp_interrupt
+.global sercom0_interrupt
 .global start
 .global do_dmb
 .global do_wfi
@@ -69,7 +70,7 @@ interrupt_table:
 .word	unused_interrupt + 1		/* DMAC */
 .word	udp_interrupt + 1		/* USB */
 .word	unused_interrupt + 1		/* EVSYS */
-.word	unused_interrupt + 1		/* SERCOM0 */
+.word	sercom0_interrupt + 1		/* SERCOM0 */
 .word	unused_interrupt + 1		/* 10 - SERCOM1 */
 .word	unused_interrupt + 1		/* SERCOM2 */
 .word	unused_interrupt + 1		/* SERCOM3 */

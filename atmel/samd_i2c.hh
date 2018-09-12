@@ -31,7 +31,7 @@
 #ifndef _SAMD_I2C_HH
 #define _SAMD_I2C_HH
 
-#include "atsamd21.hh"
+#include "atsamd21/atsamd21.hh"
 
 // I2C master configuration registers
 

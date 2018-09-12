@@ -28,7 +28,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "atsamd21.hh"
+#define I2C SERCOM0
+
 #include "samd_i2c.hh"
 
 void samd_reset_i2c()
@@ -39,21 +40,21 @@ void samd_reset_i2c()
 	while (syncbusy & 1);
 }
 
-void __samd_set_i2c_hs_baud(unsigned char hs_baud, unsigned char hs_baud_low)
+void __samd_set_i2c_hs_baud(unsigned char hs_baud_high, unsigned char hs_baud_low)
 {
 	Reg32 baud{ I2C_BAUD };
-	baud = ((hs_baud_low & 0xFF) << 24) | ((hs_baud & 0xFF) << 16);
+	baud = ((hs_baud_low & 0xFF) << 24) | ((hs_baud_high & 0xFF) << 16);
 }
-void __samd_set_i2c_baud(unsigned char baud, unsigned char baud_low)
+void __samd_set_i2c_baud(unsigned char baud_high, unsigned char baud_low)
 {
 	Reg32 baud{ I2C_BAUD };
-	baud = ((baud_low & 0xFF) << 8) | (baud & 0xFF);
+	baud = ((baud_low & 0xFF) << 8) | (baud_high & 0xFF);
 }
 void samd_set_i2c_baud_rate(unsigned int f_scl_hz, unsigned int f_gclk_hz)
 {
 	Reg32 ctrla{ I2C_CTRLA };
-	if (f_scl_khz <= 1000000) {
-		if (f_scl_khz > 400000) {
+	if (f_scl_hz <= 1000000) {
+		if (f_scl_hz > 400000) {
 			// CTRLA.SPEED = 1 => Fast-mode Plus (Fm+) up to 1MHz
 			ctrla |= 0x1 << 24;
 		}
@@ -66,7 +67,7 @@ void samd_set_i2c_baud_rate(unsigned int f_scl_hz, unsigned int f_gclk_hz)
 		unsigned int baud_rate = ((unsigned int)(f_gclk_hz / f_scl_hz) - 10) / 2;
 		__samd_set_i2c_baud(baud_rate & 0xFF, 0);
 	}
-	else if (f_scl_khz > 1000000) {
+	else if (f_scl_hz > 1000000) {
 		//CTRLA.SPEED = 2 => High-speed mode (Hs) up to 3.4MHz
 		ctrla |= 0x2 << 24;
 		// I2C Hs mode
@@ -99,6 +100,7 @@ void samd_enable_i2c_master(unsigned int f_scl_hz, unsigned int f_gclk_hz)
 	// CTRLA.ENABLE = 1
 	ctrla |= (1 << 1);
 	// Wait for synchronization to complete.
+	Reg32 syncbusy{ I2C_SYNCBUSY };
 	while ((syncbusy & (1 << 1)) != 0);
 	// Take control of the bus
 	Reg16 status{ I2C_STATUS };
@@ -161,17 +163,15 @@ void samd_i2c_send_stop()
 	ctrlb = (ctrlb & CTRLB_WR_MASK) | (0x3 << 16);
 }
 
-enum samd_i2c_bus_state {
-	I2C_UNKNOWN = 0x00,
-	I2C_IDLE = 0x01,
-	I2C_OWNER = 0x02,
-	I2C_BUSY = 0x03
-};
+#define I2C_UNKNOWN (0x00)
+#define I2C_IDLE    (0x01)
+#define I2C_OWNER   (0x02)
+#define I2C_BUSY    (0x03)
 
-samd_i2c_bus_state samd_i2c_get_bus_state()
+unsigned char samd_i2c_get_bus_state()
 {
 	Reg16 status{ I2C_STATUS };
-	return reinterpret_cast<samd_i2c_bus_state>((status & 0x0030) >> 4);
+	return (status & 0x0030) >> 4;
 }
 
 bool samd_i2c_rx_acked()

@@ -35,22 +35,22 @@ extern "C" {
 	void usb_ep_isr(unsigned int);
 	void usb_enable();
   
-	void nmi(void)
+	void nmi()
 	{
 		return;
 	}
 
-	void hard_fault(void)
+	void hard_fault()
 	{
 		return;
 	}
 
-	void mem_manage_fault(void)
+	void mem_manage_fault()
 	{
 		while (1);
 	}
 
-	void bus_fault(void)
+	void bus_fault()
 	{
 		if (1 == 1)
 			while (1);
@@ -58,44 +58,44 @@ extern "C" {
 		return;
 	}
 
-	void usage_fault(void)
+	void usage_fault()
 	{
 		while (1);
 	
 		return;
 	}
 
-	void svcall(void)
+	void svcall()
 	{
 		return;
 	}
 
-	void pendsv(void)
+	void pendsv()
 	{
 		return;
 	}
 
-	void systick(void)
+	void systick()
 	{
 		return;
 	}
 
-	void unused_interrupt(void)
+	void unused_interrupt()
 	{
 		return;
 	}
 
-	void watchdog_interrupt(void)
+	void watchdog_interrupt()
 	{
 		return;
 	}
 
-	void uart0_interrupt(void)
+	void uart0_interrupt()
 	{
 		return;
 	}
 
-	void timer_interrupt(void)
+	void timer_interrupt()
 	{
 		volatile unsigned int *pio_odsr = (unsigned int *)(0x400e1238);
 	
@@ -104,7 +104,7 @@ extern "C" {
 		return;
 	}
 
-	void udp_interrupt(void)
+	void udp_interrupt()
 	{
 		// Check if this is an EORST interrupt
 		Reg16 intflag{ USB_INTFLAG };

@@ -31,6 +31,8 @@
 #define I2C SERCOM0
 
 #include "samd_i2c.hh"
+#include "i2c.hh"
+#include "main.hh"
 
 void samd_reset_i2c()
 {

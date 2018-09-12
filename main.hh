@@ -109,4 +109,31 @@ typedef Register<unsigned short> Reg16;
 typedef Register<unsigned int> Reg32;
 #endif
 
+#include "usb.hh"
+#include "i2c.hh"
+
+// Global information needed e.g. for servicing interrupts.
+struct globals {
+	struct usb_status_info usb_info;
+	struct i2c_status_info i2c_info;
+};
+
+inline volatile struct globals* getGlobals()
+{
+	return reinterpret_cast<volatile struct globals*>(0x20000000);
+}
+
+inline volatile struct usb_status_info* getUSBStatusInfo()
+{
+	return &(getGlobals()->usb_info);
+}
+
+template<class T> T& getUSBEndpoint(unsigned char ep)
+{
+	volatile struct usb_status_info* usb_status{ getUSBStatusInfo() };
+	return *static_cast<T*>(usb_status->usb_eps[ep]);
+}
+
+
+
 #endif  // MAIN_HH_

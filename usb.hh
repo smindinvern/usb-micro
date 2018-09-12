@@ -480,17 +480,6 @@ public:
 	}
 };
 
-inline volatile struct usb_status_info* getUSBStatusInfo()
-{
-	return reinterpret_cast<volatile struct usb_status_info*>(0x20000000);
-}
-
-template<class T> T& getUSBEndpoint(unsigned char ep)
-{
-	volatile struct usb_status_info* usb_status{ getUSBStatusInfo() };
-	return *static_cast<T*>(usb_status->usb_eps[ep]);
-}
-
 extern "C" {
 	int usb_send_data_chunked(unsigned int ep, char *data, unsigned int length, unsigned int chunk_length, bool buffered);
 	void init_usb();

@@ -147,14 +147,19 @@ void samd_i2c_set_address(unsigned short address)
 	bool rw{ addr_value & 0x1 };
 	addr = (addr_value & ~0x7FF) | (address & 0x3FF) | rw;
 }
+
+void __samd_i2c_send_repeat_start()
+{
+	Reg32 ctrlb{ I2C_CTRLB };
+	ctrlb = (ctrlb & CTRLB_WR_MASK) | (0x1 << 16);
+}
 void samd_i2c_send_repeat_start(unsigned short address)
 {
 	if (address != samd_i2c_get_address()) {
 		samd_i2c_set_address(address);
 	}
 	else {
-		Reg32 ctrlb{ I2C_CTRLB };
-		ctrlb = (ctrlb & CTRLB_WR_MASK) | (0x2 << 16);
+		__samd_i2c_send_repeat_start();
 	}
 }
 void samd_i2c_send_stop()

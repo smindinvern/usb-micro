@@ -349,5 +349,15 @@ struct USBHIDDescriptor : public USBRawHIDDescriptor
 #define __usb_ep_isr usb_func(ep_isr)
 #define __usb_enter_default_state usb_func(enter_default_state)
 #define __usb_enable usb_func(enable)
-  
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+	void __usb_set_address(const unsigned int);
+	void __usb_set_configured(const bool);
+	void __usb_enter_default_state();
+#ifdef __cplusplus
+}
+#endif
+
 #endif  // USB_PRIVATE_HH_

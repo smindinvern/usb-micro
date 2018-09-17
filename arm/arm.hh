@@ -34,8 +34,10 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-void enable_interrupt(unsigned int interrupt);
-void wait_n_systicks(unsigned short n);
+	void enable_interrupt(unsigned int interrupt);
+	void set_interrupt_priority(unsigned int interrupt,
+								unsigned char priority);
+	void wait_n_systicks(unsigned short n);
 #ifdef __cplusplus
 }
 #endif

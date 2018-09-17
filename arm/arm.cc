@@ -39,6 +39,14 @@ void enable_interrupt(unsigned int interrupt)
 	nvic_iser |= (1 << interrupt);
 }
 
+void set_interrupt_priority(unsigned int interrupt,
+							unsigned char priority)
+{
+	Reg32 nvic_ipr{ ARM_NVIC_IPR((int)(interrupt / 4)) };
+	interrupt %= 4;
+	nvic_ipr = (nvic_ipr & ~(0b11 << (8*interrupt + 6))) | ((priority & 0b11) << (8*interrupt + 6));
+}
+
 void wait_n_systicks(unsigned short n)
 {
 	Reg32 syst_rvr{ ARM_SYST_RVR };

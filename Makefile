@@ -19,6 +19,8 @@ ENDIANNESS:=
 THUMB:=
 DEBUG:=
 
+OPT_LEVEL:=
+
 ifdef CPU
 	CPU:=-mcpu=$(CPU)
 endif
@@ -31,13 +33,18 @@ endif
 ifdef DEBUG
 	DEBUG:=-g
 endif
+ifdef OPT_LEVEL
+	OPT_LEVEL:=-O$(OPT_LEVEL)
+else
+	OPT_LEVEL:=-O0
+endif
 
 LINK_SCRIPT:=
 
 
 ASFLAGS:=$(CPU) $(THUMB) $(ENDIANNESS) $(DEBUG)
-CXXFLAGS:=-std=c++14 -pedantic -Wall -I. -Iatmel -Iarm -Iinclude $(ENDIANNESS) -nostdinc -nostdlib -ffreestanding -fstrict-aliasing -O3 -fshort-wchar $(CPU) $(THUMB) -finline -fno-use-cxa-get-exception-ptr -fno-exceptions -fno-rtti $(DEBUG)
-CFLAGS:=-I. -Iatmel -Iarm -pedantic $(ENDIANNESS) -nostdinc -nostdlib -ffreestanding -fstrict-aliasing -std=c99 -O3 -fshort-wchar $(CPU) $(THUMB) -finline $(DEBUG)
+CXXFLAGS:=-std=c++14 -pedantic -Wall -I. -Iatmel -Iarm -Iinclude $(ENDIANNESS) -nostdinc -nostdlib -ffreestanding -fstrict-aliasing $(OPT_LEVEL) -fshort-wchar $(CPU) $(THUMB) -finline -fno-use-cxa-get-exception-ptr -fno-exceptions -fno-rtti $(DEBUG)
+CFLAGS:=-I. -Iatmel -Iarm -pedantic $(ENDIANNESS) -nostdinc -nostdlib -ffreestanding -fstrict-aliasing -std=c99 $(OPT_LEVEL) -fshort-wchar $(CPU) $(THUMB) -finline $(DEBUG)
 LINKFLAGS:=-T $(LINK_SCRIPT) -Wl,-G,0 -Wl,-N
 
 OBJS:=arm/interrupt_table.o arm/interrupt_handlers.o arm/arm.o atmel/microchip_init.o usb.o atmel/samd_usb.o usbtmc.o usbtmc488.o mm.o main.o end.o

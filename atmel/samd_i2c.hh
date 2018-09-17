@@ -51,6 +51,7 @@
 
 void samd_enable_i2c_master(unsigned int, unsigned int);
 void samd_init_i2c();
-
+int i2c_tx_bytes(unsigned short, unsigned char*, unsigned int);
+unsigned char* i2c_rx_bytes(unsigned short, unsigned int);
 
 #endif  // _SAMD_I2C_HH

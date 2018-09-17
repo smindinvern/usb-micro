@@ -33,6 +33,7 @@
 #include "samd_i2c.hh"
 #include "i2c.hh"
 #include "main.hh"
+#include "arm.hh"
 
 void samd_reset_i2c()
 {
@@ -90,29 +91,21 @@ void wait_sysop_sync()
 
 void samd_init_i2c()
 {
+	// Enable APB clock for I2C
+	Reg32 pm_apbcmask{ PM_APBCMASK };
+	// APBCMASK.SERCOM0 = 1
+	pm_apbcmask |= (1 << 2);
+	// Assign I/O lines to peripheral (SERCOM0) function
+	set_pin_peripheral(0, 8, 2);
+	set_pin_peripheral(0, 9, 2);
 	// Setup GCLK_SERCOM0_CORE
 	setup_gclk(GCLKGEN0, GCLK_SERCOM0_CORE);
 	samd_enable_i2c_master(1000000, 48000000);
-}
-
-void samd_enable_i2c_master(unsigned int f_scl_hz, unsigned int f_gclk_hz)
-{
-	// Make sure i2c is currently disabled.  Most settings are enable-protected.
-	samd_reset_i2c();
-	Reg32 ctrla{ I2C_CTRLA };
-	// CTRLA.MODE = 0x5 => i2c master
-	// CTRLA.SCLSM = 1 => stretch SCL only after ACK bit.
-	ctrla = (1 << 27) | (0x5 << 2);
-	samd_set_i2c_baud_rate(f_scl_hz, f_gclk_hz);
-	// Enable i2c.
-	// CTRLA.ENABLE = 1
-	ctrla |= (1 << 1);
-	// Wait for synchronization to complete.
-	Reg32 syncbusy{ I2C_SYNCBUSY };
-	while ((syncbusy & (1 << 1)) != 0);
-	// Take control of the bus
-	Reg16 status{ I2C_STATUS };
-	status = (status & ~0x0030) | 0x1;
+	Reg8 intenclr{ I2C_INTENCLR };
+	intenclr = 0xFF;
+	Reg8 intenset{ I2C_INTENSET };
+	// Enable Master-on-bus and Slave-on-bus interrupts.
+	intenset = (1 << 1) | 1;
 }
 
 #define CTRLB_WR_MASK ((1 << 18) | (1 << 9) | (1 << 8))
@@ -309,4 +302,60 @@ void i2c_master_isr()
 void i2c_slave_isr()
 {
 
+}
+
+int i2c_tx_bytes(unsigned short address, unsigned char* bytes, unsigned int length)
+{
+	volatile struct i2c_status_info* i2c_info{ getI2CStatusInfo() };
+	i2c_info->tx_fifo = bytes;
+	i2c_info->tx_bytes = length;
+	i2c_info->error = false;
+	__samd_i2c_start_transaction(address, false);
+	while (i2c_info->tx_bytes > 0 && !i2c_info->error);
+	i2c_info->tx_fifo = nullptr;
+	i2c_info->tx_bytes = 0;
+	return i2c_info->error ? -1 : 0;
+}
+
+unsigned char* i2c_rx_bytes(unsigned short address, unsigned int length)
+{
+	volatile struct i2c_status_info* i2c_info{ getI2CStatusInfo() };
+	unsigned char* buf{ new(std::nothrow) unsigned char[length] };
+	if (!buf) {
+		return nullptr;
+	}
+	i2c_info->rx_fifo = buf;
+	i2c_info->rx_bytes = length;
+	i2c_info->error = false;
+	__samd_i2c_start_transaction(address, true);
+	while (i2c_info->rx_bytes > 0 && !i2c_info->error);
+	i2c_info->rx_fifo = nullptr;
+	i2c_info->rx_bytes = 0;
+	if (i2c_info->error) {
+		delete[] buf;
+		return nullptr;
+	}
+	return buf;
+}
+
+void samd_enable_i2c_master(unsigned int f_scl_hz, unsigned int f_gclk_hz)
+{
+	// Make sure i2c is currently disabled.  Most settings are enable-protected.
+	samd_reset_i2c();
+	Reg32 ctrla{ I2C_CTRLA };
+	// CTRLA.MODE = 0x5 => i2c master
+	// CTRLA.SCLSM = 0 => stretch SCL before ACK bit.
+	ctrla = (0 << 27) | (0x5 << 2);
+	samd_set_i2c_baud_rate(f_scl_hz, f_gclk_hz);
+	// Enable i2c.
+	// CTRLA.ENABLE = 1
+	ctrla |= (1 << 1);
+	// Wait for synchronization to complete.
+	Reg32 syncbusy{ I2C_SYNCBUSY };
+	while ((syncbusy & (1 << 1)) != 0);
+	// Take control of the bus
+	Reg16 status{ I2C_STATUS };
+	status = (status & ~0x0030) | (0x1 << 4);
+	// Since SCLSM = 1, ensure ACK bit is cleared before any transactions occur.
+	samd_i2c_send_ack();
 }

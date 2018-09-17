@@ -129,6 +129,11 @@ void samd_i2c_clear_both_fifos()
 }
 void samd_i2c_send_ack()
 {
+	Reg32 ctrlb{ I2C_CTRLB };
+	ctrlb = (ctrlb & CTRLB_WR_MASK);
+}
+void samd_i2c_send_nak()
+{
 	constexpr unsigned int ACKACT = 1 << 18;
 	Reg32 ctrlb{ I2C_CTRLB };
 	ctrlb = (ctrlb & CTRLB_WR_MASK) | ACKACT;

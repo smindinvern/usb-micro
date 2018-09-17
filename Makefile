@@ -36,7 +36,7 @@ LINK_SCRIPT:=
 
 
 ASFLAGS:=$(CPU) $(THUMB) $(ENDIANNESS) $(DEBUG)
-CXXFLAGS:=-std=c++14 -pedantic -Wall -I. -Iatmel -Iarm -Iinclude/std $(ENDIANNESS) -nostdinc -nostdlib -ffreestanding -fstrict-aliasing -O3 -fshort-wchar $(CPU) $(THUMB) -finline -fno-use-cxa-get-exception-ptr -fno-exceptions -fno-rtti $(DEBUG)
+CXXFLAGS:=-std=c++14 -pedantic -Wall -I. -Iatmel -Iarm -Iinclude $(ENDIANNESS) -nostdinc -nostdlib -ffreestanding -fstrict-aliasing -O3 -fshort-wchar $(CPU) $(THUMB) -finline -fno-use-cxa-get-exception-ptr -fno-exceptions -fno-rtti $(DEBUG)
 CFLAGS:=-I. -Iatmel -Iarm -pedantic $(ENDIANNESS) -nostdinc -nostdlib -ffreestanding -fstrict-aliasing -std=c99 -O3 -fshort-wchar $(CPU) $(THUMB) -finline $(DEBUG)
 LINKFLAGS:=-T $(LINK_SCRIPT) -Wl,-G,0 -Wl,-N
 

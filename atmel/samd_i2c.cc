@@ -190,6 +190,10 @@ void samd_i2c_send_repeat_start(unsigned short address)
 		__samd_i2c_send_repeat_start();
 	}
 }
+void samd_i2c_read_next_byte()
+{
+	__samd_i2c_send_command(0x2);
+}
 void samd_i2c_send_stop()
 {
 	__samd_i2c_send_command(0x3);
@@ -272,6 +276,7 @@ void i2c_master_isr()
 				i2c_info->tx_bytes--;
 			}
 			else {
+				samd_i2c_send_nak();
 				samd_i2c_send_stop();
 			}
 			i2c_info->error = false;
@@ -279,12 +284,21 @@ void i2c_master_isr()
 		samd_i2c_clear_mb_intflag();
 	}
 	else if (samd_i2c_get_sb_intflag()) {
+		// NB: possible exception due to pointer dereference.
+		if (i2c_info->rx_bytes == 0) {
+			samd_i2c_send_nak();
+			samd_i2c_send_stop();
+			samd_i2c_clear_sb_intflag();
+			return;
+		}
 		*(i2c_info->rx_fifo++) = static_cast<unsigned char>(data & 0xFF);
 		i2c_info->rx_bytes--;
 		if (i2c_info->rx_bytes > 0) {
-			__samd_i2c_send_repeat_start();
+			samd_i2c_send_ack();
+			samd_i2c_read_next_byte();
 		}
 		else {
+			samd_i2c_send_nak();
 			samd_i2c_send_stop();
 		}
 		i2c_info->error = false;

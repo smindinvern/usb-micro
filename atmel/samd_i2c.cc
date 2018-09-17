@@ -82,6 +82,12 @@ void samd_set_i2c_baud_rate(unsigned int f_scl_hz, unsigned int f_gclk_hz)
 	}
 }
 
+void wait_sysop_sync()
+{
+	Reg32 syncbusy{ I2C_SYNCBUSY };
+	while (syncbusy & (1 << 2));
+}
+
 void samd_init_i2c()
 {
 	// Setup GCLK_SERCOM0_CORE
@@ -114,6 +120,7 @@ void __samd_i2c_clear_fifos(unsigned char x)
 {
 	Reg32 ctrlb{ I2C_CTRLB };
 	ctrlb = (ctrlb & CTRLB_WR_MASK) | (x << 22);
+	wait_sysop_sync();
 }
 void samd_i2c_clear_tx_fifo()
 {
@@ -138,27 +145,41 @@ void samd_i2c_send_nak()
 	Reg32 ctrlb{ I2C_CTRLB };
 	ctrlb = (ctrlb & CTRLB_WR_MASK) | ACKACT;
 }
-unsigned short samd_i2c_get_address()
+unsigned short __samd_i2c_get_address()
 {
 	Reg32 addr{ I2C_ADDR };
-	return (addr & 0x7FE) >> 1;
+	return addr & 0x7FF;
+}
+unsigned short samd_i2c_get_address()
+{
+	return (__samd_i2c_get_address() & ~0x1) >> 1;
 }
 // Writing to ADDR.ADDR while the bus state is OWNER will result
 // in the I2C master issuing a repeated start sequence.  This can
 // only be done while INTFLAG.MB or INTFLAG.SB is set.
-void samd_i2c_set_address(unsigned short address)
+void __samd_i2c_start_transaction(unsigned short address, bool rx)
 {
 	Reg32 addr{ I2C_ADDR };
 	unsigned int addr_value{ addr };
 	// Bit 0 of ADDR.ADDR is used as the R/W direction flag.
-	bool rw{ addr_value & 0x1 };
-	addr = (addr_value & ~0x7FF) | (address & 0x3FF) | rw;
+	addr = (addr_value & ~0x7FF) | ((address & 0x3FF) << 1) | rx;
+	wait_sysop_sync();
+}
+void samd_i2c_set_address(unsigned short address)
+{
+	bool rx{ __samd_i2c_get_address() & 0x1 };
+	__samd_i2c_start_transaction(address, rx);
+}
+void __samd_i2c_send_command(unsigned char cmd)
+{
+	Reg32 ctrlb{ I2C_CTRLB };
+	ctrlb = (ctrlb & CTRLB_WR_MASK) | (cmd << 16);
+	wait_sysop_sync();
 }
 
 void __samd_i2c_send_repeat_start()
 {
-	Reg32 ctrlb{ I2C_CTRLB };
-	ctrlb = (ctrlb & CTRLB_WR_MASK) | (0x1 << 16);
+	__samd_i2c_send_command(0x1);
 }
 void samd_i2c_send_repeat_start(unsigned short address)
 {
@@ -171,8 +192,7 @@ void samd_i2c_send_repeat_start(unsigned short address)
 }
 void samd_i2c_send_stop()
 {
-	Reg32 ctrlb{ I2C_CTRLB };
-	ctrlb = (ctrlb & CTRLB_WR_MASK) | (0x3 << 16);
+	__samd_i2c_send_command(0x3);
 }
 
 #define I2C_UNKNOWN (0x00)

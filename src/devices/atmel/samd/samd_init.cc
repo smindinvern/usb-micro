@@ -28,7 +28,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "samd21_usb.hh"
+#include "samd_usb.hh"
 
 #include "main.hh"
 #include "usb.hh"

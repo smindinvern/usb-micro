@@ -29,7 +29,7 @@
  */
 
 #include "main.hh"
-#include "samd21_usb.hh"
+#include "samd_usb.hh"
 
 void i2c_master_isr();
 void i2c_slave_isr();

@@ -29,7 +29,7 @@
  */
 
 #include "atsamd21/atsamd21.hh"
-#include "samd21_usb.hh"
+#include "samd_usb.hh"
 
 #include "usb.hh"
 

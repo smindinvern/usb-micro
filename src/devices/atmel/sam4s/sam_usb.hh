@@ -31,7 +31,9 @@
 #ifndef SAM_USB_HH_
 #define SAM_USB_HH_
 
+#include "std.hh"
 #include "usb.hh"
+#include "sam.hh"
 
 /**
  * struct AtmelSAMUSBEndpointImpl
@@ -91,19 +93,16 @@ struct AtmelSAMUSBControlEndpoint : public USBControlEndpoint {
     AtmelSAMUSBControlEndpoint(AtmelSAMUSBControlEndpoint&&) = default;
 };
 
-struct AtmelSAMUSBDevice : public USBDevice {
-    AtmelSAMUSBDevice(USBDeviceDescriptor descriptor, Invokable<USBConfiguration*(unsigned char)> configurationFactory)
-	: USBDevice(AtmelSAMUSBControlEndpoint(0, descriptor.get<4>() /* bMaxPacketSize0 */),
-		    std::move(descriptor), std::move(configurationFactory))
-    {
+inline USBDevice create_sam4s_usb_device(USBDeviceDescriptor descriptor,
+										 Invokable<USBConfiguration*(unsigned char)>&& configFactory)
+{
+	USBDevice dev{ AtmelSAMUSBControlEndpoint{ 0, 64 },
+			       descriptor, std::move(configFactory),
+				   new(std::nothrow) USBDeviceGenericImpl() };
 	// At this point all endpoints have been configured.  All that remains
 	// to be done is to enable the USB function as a whole.
-	atmel_usb_enable();
-    }
-    AtmelSAMUSBDevice(const AtmelSAMUSBDevice&) = delete;
-    AtmelSAMUSBDevice(AtmelSAMUSBDevice&&) = default;
-    virtual ~AtmelSAMUSBDevice() = default;
-};
-
+	sam_usb_enable();
+	return dev;
+}
 
 #endif

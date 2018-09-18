@@ -31,9 +31,8 @@
 #ifndef TUPLE_HH_
 #define TUPLE_HH_
 
+#include "std.hh"
 #include "mm.hh"
-#include "main.hh"
-
 
 template<class T, class U, class... V> struct Tuple;
 template<class T, class U> struct Tuple<T, U>;

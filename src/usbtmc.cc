@@ -28,6 +28,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "std.hh"
 #include "usbtmc.hh"
 #include "usbtmc488.hh"
 

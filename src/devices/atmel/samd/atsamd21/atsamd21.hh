@@ -34,7 +34,7 @@
 #include "arm.hh"
 #include "main.hh"
 
-#define CHIP_NAME SAMD21
+#define CHIP_FAMILY SAMD21
 
 #define NVM_OTP 0x806020
 

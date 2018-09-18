@@ -30,34 +30,30 @@
 
 MEMORY
 {
-	rom (rx)  : ORIGIN = 0x00400000, LENGTH = 0x00100000
-	ram (rwx) : ORIGIN = 0x20000000, LENGTH = 0x00020000
+	rom (rx)  : ORIGIN = 0x00000000, LENGTH = 0x00020000
+	ram (rwx) : ORIGIN = 0x20000000, LENGTH = 0x00004000
 }
 
 SECTIONS
 {
 	.text : {
-			arm/interrupt_table.o(.text)
-			arm/interrupt_handlers.o(.text)
-	      		main.o(.text)
-			arm/arm.o(.text)
-			atmel/atmel_init.o(.text)
-			atmel/atmel_timer.o(.text)
-			atmel/atmel_usb.o(.text)
-			atmel/sam.o(.text)
-			atmel/sam_usb.o(.text)
+			devices/atmel/samd/interrupt_table.o(.text)
+			devices/atmel/samd/interrupt_handlers.o(.text)
+			div.o(.text)
+			devices/arm/arm.o(.text)
+			devices/atmel/samd/microchip_init.o(.text)
+			devices/atmel/samd/samd_usb.o(.text)
+			devices/atmel/samd/samd_i2c.o(.text)
 			usb.o(.text)
 			usbtmc.o(.text)
+			usbtmc488.o(.text)
 			mm.o(.text)
+	      		main.o(.text)
 			*(.rodata)
 			*(.got)
       			*(.data)
      			*(.bss)
-			end.o(.text)
 	} > rom
-	.note.gnu.build-id 0 : {
-			*(.note.gnu.build-id)
-	}
 	.debug_arranges 0 : {
 			*(.debug_arranges)
 	}

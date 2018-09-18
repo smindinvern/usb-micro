@@ -28,62 +28,111 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-MEMORY
-{
-	rom (rx)  : ORIGIN = 0x00000000, LENGTH = 0x00020000
-	ram (rwx) : ORIGIN = 0x20000000, LENGTH = 0x00004000
-}
+#include "main.hh"
 
-SECTIONS
-{
-	.text : {
-			arm/interrupt_table.o(.text)
-			arm/interrupt_handlers.o(.text)
-			arm/arm.o(.text)
-			atmel/microchip_init.o(.text)
-			atmel/samd_usb.o(.text)
-			usbtmc.o(.text)
-			usbtmc488.o(.text)
-			mm.o(.text)
-	      		main.o(.text)
-			*(.rodata)
-			*(.got)
-      			*(.data)
-     			*(.bss)
-			end.o(.text)
-	} > rom
-	.debug_arranges 0 : {
-			*(.debug_arranges)
+extern "C" {
+	void usb_ep_isr(unsigned int);
+	void usb_enable();
+  
+	void nmi(void)
+	{
+        return;
 	}
-	.debug_info 0 : {
-			*(.debug_info)
+
+	void hard_fault(void)
+	{
+        return;
 	}
-	.debug_abbrev 0 : {
-			*(.debug_abbrev)
+
+	void mem_manage_fault(void)
+	{
+        while (1);
 	}
-	.debug_line 0 : {
-			*(.debug_line)
+
+	void bus_fault(void)
+	{
+        if (1 == 1)
+			while (1);
+
+        return;
 	}
-	.debug_frame 0 : {
-			*(.debug_frame)
+
+	void usage_fault(void)
+	{
+        while (1);
+
+        return;
 	}
-	.debug_str 0 : {
-			*(.debug_str)
+
+	void svcall(void)
+	{
+        return;
 	}
-	.debug_loc 0 : {
-			*(.debug_loc)
+
+	void pendsv(void)
+	{
+        return;
 	}
-	.debug 0 : {
-			*(.debug)
+
+	void systick(void)
+	{
+        return;
 	}
-	.line 0 : {
-			*(.line)
+
+	void unused_interrupt(void)
+	{
+        return;
 	}
-	.debug_srcinfo 0 : {
-			*(.debug_srcinfo)
+
+	void watchdog_interrupt(void)
+	{
+        return;
 	}
-	.debug_sfnames 0 : {
-			*(.debug_sfnames)
+
+	void uart0_interrupt(void)
+	{
+        return;
+	}
+
+	void timer_interrupt(void)
+	{
+        volatile unsigned int *pio_odsr = (unsigned int *)(0x400e1238);
+
+        *pio_odsr ^= (1 << 10);
+
+        return;
+	}
+
+	void udp_interrupt(void)
+	{
+        volatile unsigned int *udp_isr = (unsigned int *)(0x4003401c);
+        volatile unsigned int *udp_icr = (unsigned int *)(0x40034020);
+
+        while (*udp_isr) {
+			if (*udp_isr & (1 << 12)) {
+				// usb_enter_default_state();
+				usb_enable();
+				*udp_icr = (1 << 12);
+			}
+			else if (*udp_isr & 0xff) {
+				if (*udp_isr & 1) {
+					usb_ep_isr(0);
+					*udp_icr = 1;
+				}
+				if (*udp_isr & (1 << 1)) {
+					usb_ep_isr(1);
+					*udp_icr = (1 << 1);
+				}
+				if (*udp_isr & (1 << 2)) {
+					usb_ep_isr(2);
+					*udp_icr = (1 << 2);
+				}
+			}
+			else {
+				*udp_icr = 0x00003f00;
+			}
+        }
+
+        return;
 	}
 }
-

@@ -28,69 +28,68 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef INVOKABLE_HH_
-#define INVOKABLE_HH_
-
-#include "std.hh"
-#include "mm.hh"
-
-template<class> struct Invokable;
-
-template<class R, class... ArgTypes> struct InvokeHelper {
-	virtual R INVOKE(ArgTypes...) = 0;
-	virtual ~InvokeHelper() = default;
-};
-
-template<class F, class R, class... ArgTypes> struct InvokableWrapper : public InvokeHelper<R, ArgTypes...>
+MEMORY
 {
-	std::remove_reference_t<F> callable_object;
-	InvokableWrapper(const F& object)
-		: callable_object{ object } {}
+	rom (rx)  : ORIGIN = 0x00400000, LENGTH = 0x00100000
+	ram (rwx) : ORIGIN = 0x20000000, LENGTH = 0x00020000
+}
 
-	virtual R INVOKE(ArgTypes... args)
-	{
-		return callable_object(static_cast<ArgTypes>(args)...);
-	}
-};
-
-template<class R, class... ArgTypes> struct Invokable<R(ArgTypes...)>
+SECTIONS
 {
-	InvokeHelper<R, ArgTypes...>* invoker{};
+	.text : {
+			devices/atmel/sam4s/interrupt_table.o(.text)
+			devices/atmel/sam4s/interrupt_handlers.o(.text)
+	      		main.o(.text)
+			devices/arm/arm.o(.text)
+			devices/atmel/sam4s/atmel_init.o(.text)
+			devices/atmel/sam4s/atmel_timer.o(.text)
+			devices/atmel/sam4s/atmel_usb.o(.text)
+			devices/atmel/sam4s/sam.o(.text)
+			devices/atmel/sam4s/sam_usb.o(.text)
+			usb.o(.text)
+			usbtmc.o(.text)
+			usbtmc488.o(.text)
+			mm.o(.text)
+			*(.rodata)
+			*(.got)
+      			*(.data)
+     			*(.bss)
+	} > rom
+	.note.gnu.build-id 0 : {
+			*(.note.gnu.build-id)
+	}
+	.debug_arranges 0 : {
+			*(.debug_arranges)
+	}
+	.debug_info 0 : {
+			*(.debug_info)
+	}
+	.debug_abbrev 0 : {
+			*(.debug_abbrev)
+	}
+	.debug_line 0 : {
+			*(.debug_line)
+	}
+	.debug_frame 0 : {
+			*(.debug_frame)
+	}
+	.debug_str 0 : {
+			*(.debug_str)
+	}
+	.debug_loc 0 : {
+			*(.debug_loc)
+	}
+	.debug 0 : {
+			*(.debug)
+	}
+	.line 0 : {
+			*(.line)
+	}
+	.debug_srcinfo 0 : {
+			*(.debug_srcinfo)
+	}
+	.debug_sfnames 0 : {
+			*(.debug_sfnames)
+	}
+}
 
-	template<class F> Invokable(const F& func)
-		: invoker{ new(std::nothrow) InvokableWrapper<F, R, ArgTypes...>{ func } } {}
-	template<class F> Invokable(F& func)
-		: Invokable(static_cast<const F&>(func)) {}
-	Invokable(R (*func)(ArgTypes...))
-	        : invoker{ new(std::nothrow) InvokableWrapper<R (*)(ArgTypes...), R, ArgTypes...>{ func } } {}
-	
-	Invokable() = default;
-	Invokable(Invokable&& other)
-		: invoker{ other.invoker }
-	{
-		other.invoker = nullptr;
-	}
-	Invokable& operator=(Invokable&& rhs)
-	{
-		invoker = rhs.invoker;
-		rhs.invoker = nullptr;
-		return *this;
-	}
-
-	operator bool()
-	{
-		return (invoker != nullptr);
-	}
-	R operator()(ArgTypes... args) const
-	{
-		// TODO: if (!*this) { /* ... */ }
-		return invoker->INVOKE(static_cast<ArgTypes>(args)...);
-	}
-
-	~Invokable()
-	{
-		delete invoker;
-	}
-};
-
-#endif  // INVOKABLE_HH_

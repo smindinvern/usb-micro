@@ -45,33 +45,7 @@ extern "C" {
 }
 #endif
 
-// This is only relevant for C++.
 #ifdef __cplusplus
-namespace std {
-	template<class> struct remove_reference;
-	template<class T> struct remove_reference
-	{
-		typedef T type;
-	};
-	template<class T> struct remove_reference<T&>
-	{
-		typedef T type;
-	};
-	template<class T> struct remove_reference<T&&>
-	{
-		typedef T type;
-	};
-
-	template<class T> using remove_reference_t = typename remove_reference<T>::type;
-
-	// decltype(t) is either T& or T&&, so it never invokes a constructor
-	// T&& because T& can't bind to pr-values
-	template<class T> constexpr remove_reference_t<T>&& move(T&& t) noexcept
-	{
-		return static_cast<remove_reference_t<T>&&>(t);
-	}
-}
-
 template<typename T> class Register
 {
 private:
@@ -120,7 +94,9 @@ struct globals {
 
 inline volatile struct globals* getGlobals()
 {
-	return reinterpret_cast<volatile struct globals*>(0x20000000);
+	// For C compatibility: cast notation from integral to pointer type should
+	// be equivalent to C++'s reinterpret_cast<>().
+	return (volatile struct globals *)(0x20000000);
 }
 
 inline volatile struct i2c_status_info* getI2CStatusInfo()
@@ -133,12 +109,13 @@ inline volatile struct usb_status_info* getUSBStatusInfo()
 	return &getGlobals()->usb_info;
 }
 
+#ifdef __cplusplus
 template<class T> T& getUSBEndpoint(unsigned char ep)
 {
 	volatile struct usb_status_info* usb_status{ getUSBStatusInfo() };
 	return *static_cast<T*>(usb_status->usb_eps[ep]);
 }
-
+#endif
 
 
 #endif  // MAIN_HH_

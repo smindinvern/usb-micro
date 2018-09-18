@@ -31,12 +31,6 @@
 #ifndef USB_HH_
 #define USB_HH_
 
-#include "usb_private.hh"
-#include "mm.hh"
-#include "main.hh"
-#include "Vector.hh"
-#include "Invokable.hh"
-
 #define NUM_ENDPOINTS	3
 
 /**
@@ -56,7 +50,7 @@ struct endpoint {
 };
 
 struct USBEndpoint;
-class USBDevice;
+struct USBDevice;
 
 /**
  * struct usb_status_info
@@ -71,8 +65,8 @@ struct usb_status_info {
 	unsigned int configured:1;
 	unsigned int :0;
 	struct endpoint eps[NUM_ENDPOINTS];
-	USBDevice* device;
-	USBEndpoint* usb_eps[NUM_ENDPOINTS];
+	struct USBDevice* device;
+	struct USBEndpoint* usb_eps[NUM_ENDPOINTS];
 	unsigned int state:8;
 	unsigned int :0;
 	unsigned int address:8;
@@ -83,6 +77,13 @@ struct usb_status_info {
 	unsigned char rts;
 };
 
+#ifdef __cplusplus
+
+#include "std.hh"
+#include "usb_private.hh"
+#include "mm.hh"
+#include "Vector.hh"
+#include "Invokable.hh"
 
 /**
  * struct USBEndpointImpl
@@ -373,7 +374,7 @@ struct USBDeviceGenericImpl : USBDeviceImpl
 };
 
 /**
- * class USBDevice
+ * struct USBDevice
  *
  * Contains all information and code necessary to enumerate the specified
  * device and forward all incoming requests and transactions to the appropriate
@@ -386,7 +387,7 @@ struct USBDeviceGenericImpl : USBDeviceImpl
  * by the default handlers.  Class-specific device request handlers can also
  * be registered.
  */
-class USBDevice
+struct USBDevice
 {
 public:
 	USBControlEndpoint ep0;
@@ -480,12 +481,19 @@ public:
 	}
 };
 
+#endif  // defined(__cplusplus)
+
+#ifdef __cplusplus
 extern "C" {
+#endif
 	int usb_send_data_chunked(unsigned int ep, char *data, unsigned int length, unsigned int chunk_length, bool buffered);
 	void init_usb();
 	int usb_setup_token(unsigned int ep);
 	void usb_out_token(unsigned int ep);
 	void usb_in_token(unsigned int ep);
+#ifdef __cplusplus
 }
+#endif
+
 
 #endif  // USB_HH_

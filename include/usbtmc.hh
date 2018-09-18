@@ -31,7 +31,7 @@
 #ifndef USBTMC_HH_
 #define USBTMC_HH_
 
-#include "samd21_usb.hh"
+#include "std.hh"
 #include "usb.hh"
 #include "mm.hh"
 #include "Tuple.hh"

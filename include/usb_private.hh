@@ -341,7 +341,7 @@ struct USBHIDDescriptor : public USBRawHIDDescriptor
 };
 
 #define usb_func(x) \
-	samd_usb_##x
+	atmel_usb_##x
 
 #define __usb_set_address usb_func(set_address)
 #define __usb_set_configured usb_func(set_configured)
@@ -355,7 +355,10 @@ extern "C" {
 #endif
 	void __usb_set_address(const unsigned int);
 	void __usb_set_configured(const bool);
+	void __usb_init_usb();
+	void __usb_ep_isr(unsigned int);
 	void __usb_enter_default_state();
+	void __usb_enable();
 #ifdef __cplusplus
 }
 #endif

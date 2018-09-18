@@ -28,12 +28,11 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "std.hh"
 #include "main.hh"
-#include "samd21_usb.hh"
 #include "usb.hh"
 #include "usb_private.hh"
 #include "mm.hh"
-#include "sam.hh"
 
 /* defined in interrupt_table.s */
 

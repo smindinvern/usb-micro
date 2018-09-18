@@ -28,8 +28,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "std.hh"
 #include "mm.hh"
-#include "samd21_usb.hh"
+#include "sam_usb.hh"
 #include "usb.hh"
 #include "usbtmc.hh"
 #include "usbtmc488.hh"
@@ -82,39 +83,32 @@ extern "C" {
 			1  // 1 configuration
 		};
 
-		samd_usb_init_usb();
-		samd_usb_enable();
-		samd21_ep_desc* descs = new(std::nothrow) samd21_ep_desc[3];
-		Reg32 descadd{ USB_DESCADD };
-		descadd = reinterpret_cast<unsigned int>(descs);
+		__usb_init_usb();
 		
 		Invokable<USBDevice(Invokable<USBConfiguration*(unsigned char)>&&)> cstr = {
 			[&](auto&& fact) -> auto
 			{
-				USBDevice dev{ SAMDUSBControlEndpoint{ 0, 64, descs },
-							   device_descriptor, std::move(fact),
-							   new(std::nothrow) USBDeviceGenericImpl() };
-//				samd_usb_enable();
-				return dev;
+				return create_sam4s_usb_device(device_descriptor, std::move(fact));
 			}
 		};
 		Invokable<std::exclusive_ptr<USBInEndpoint>()> get_in_ep = {
 			[&]() -> auto
 			{
-				return std::exclusive_ptr<USBInEndpoint>(new(std::nothrow) SAMDUSBInEndpoint{ 2, USBEndpoint::bulk_ep, 64, descs });
+				return std::exclusive_ptr<USBInEndpoint>(new(std::nothrow) AtmelSAMUSBInEndpoint{ 2, USBEndpoint::bulk_ep, 64 });
 			}
 		};
 		Invokable<std::exclusive_ptr<USBOutEndpoint>()> get_out_ep = {
 			[&]() -> auto
 			{
-				return std::exclusive_ptr<USBOutEndpoint>(new(std::nothrow) SAMDUSBOutEndpoint{ 1, USBEndpoint::bulk_ep, 64, descs });
+				return std::exclusive_ptr<USBOutEndpoint>(new(std::nothrow) AtmelSAMUSBOutEndpoint{ 1, USBEndpoint::bulk_ep, 64 });
 			}
 		};
 
 		USBTMCDevice tmc_dev = create_usbtmc488_device(cstr, get_out_ep, get_in_ep);
 		usb_status->device = &tmc_dev;
-
-		enable_interrupt(7);  // start receiving interrupts for USB
+		// Configure and enable USB peripheral interrupts.
+		set_interrupt_priority(7, 2);
+		enable_interrupt(7);
 
 		while (1) {
 			if (usb_status->configured == 1) {

@@ -31,7 +31,7 @@
 #ifndef VECTOR_HH_
 #define VECTOR_HH_
 
-#include "main.hh"
+#include "std.hh"
 #include "mm.hh"
 
 template<class T> class Vector

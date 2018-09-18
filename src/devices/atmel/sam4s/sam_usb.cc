@@ -30,6 +30,7 @@
 
 #include "sam_usb.hh"
 #include "sam.hh"
+#include "main.hh"
 
 AtmelSAMUSBEndpointImpl::AtmelSAMUSBEndpointImpl(unsigned char epNumber,
 						 USBEndpoint::ep_type epType,

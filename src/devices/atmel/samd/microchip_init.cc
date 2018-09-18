@@ -28,7 +28,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "atsamd21/atsamd21x17.hh"
 #include "samd21_usb.hh"
 
 #include "main.hh"

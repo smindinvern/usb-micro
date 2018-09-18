@@ -11,6 +11,6 @@ CFLAGS+= $(FLAGS)
 CXXFLAGS+= $(FLAGS)
 LINKFLAGS+= -T $(LINK_SCRIPT)
 
-SAMD_OBJS:=interrupt_table.o interrupt_handlers.o microchip_init.o samd_i2c.o samd_usb.o 
+SAMD_OBJS:=interrupt_table.o interrupt_handlers.o samd_init.o samd_i2c.o samd_usb.o 
 OBJS+= $(patsubst %,$(DEVDIR)/%,$(SAMD_OBJS))
 undefine SAMD_OBJS

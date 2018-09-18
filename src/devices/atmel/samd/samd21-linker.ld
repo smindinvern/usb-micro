@@ -41,7 +41,7 @@ SECTIONS
 			devices/atmel/samd/interrupt_handlers.o(.text)
 			div.o(.text)
 			devices/arm/arm.o(.text)
-			devices/atmel/samd/microchip_init.o(.text)
+			devices/atmel/samd/samd_init.o(.text)
 			devices/atmel/samd/samd_usb.o(.text)
 			devices/atmel/samd/samd_i2c.o(.text)
 			usb.o(.text)

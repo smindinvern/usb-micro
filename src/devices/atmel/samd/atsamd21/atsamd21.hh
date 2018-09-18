@@ -134,7 +134,7 @@
 #define SAMD21_I2S    		   (SAMD21_AHB_APB_BRIDGE_C + SAMD21_I2S_OFFSET)
 #define SAMD21_AC1    		   (SAMD21_AHB_APB_BRIDGE_C + SAMD21_AC1_OFFSET)
 
-#include "microchip.hh"
+#include "samd.hh"
 
 // Watchdog timer
 #define WDT_CTRL        (WDT + 0x00UL)

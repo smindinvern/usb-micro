@@ -28,69 +28,32 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-MEMORY
-{
-	rom (rx)  : ORIGIN = 0x00400000, LENGTH = 0x00100000
-	ram (rwx) : ORIGIN = 0x20000000, LENGTH = 0x00020000
-}
+.global mask_interrupts
+.global unmask_interrupts
+.global do_isb
+.global do_dmb
+.global do_wfi
+.global do_nop
 
-SECTIONS
-{
-	.text : {
-			devices/atmel/sam4s/interrupt_table.o(.text)
-			devices/atmel/sam4s/interrupt_handlers.o(.text)
-			devices/arm/primitives.o(.text)
-	      		main.o(.text)
-			devices/arm/arm.o(.text)
-			devices/atmel/sam4s/atmel_init.o(.text)
-			devices/atmel/sam4s/atmel_timer.o(.text)
-			devices/atmel/sam4s/atmel_usb.o(.text)
-			devices/atmel/sam4s/sam.o(.text)
-			devices/atmel/sam4s/sam_usb.o(.text)
-			usb.o(.text)
-			usbtmc.o(.text)
-			usbtmc488.o(.text)
-			mm.o(.text)
-			*(.rodata)
-			*(.got)
-      			*(.data)
-     			*(.bss)
-	} > rom
-	.note.gnu.build-id 0 : {
-			*(.note.gnu.build-id)
-	}
-	.debug_arranges 0 : {
-			*(.debug_arranges)
-	}
-	.debug_info 0 : {
-			*(.debug_info)
-	}
-	.debug_abbrev 0 : {
-			*(.debug_abbrev)
-	}
-	.debug_line 0 : {
-			*(.debug_line)
-	}
-	.debug_frame 0 : {
-			*(.debug_frame)
-	}
-	.debug_str 0 : {
-			*(.debug_str)
-	}
-	.debug_loc 0 : {
-			*(.debug_loc)
-	}
-	.debug 0 : {
-			*(.debug)
-	}
-	.line 0 : {
-			*(.line)
-	}
-	.debug_srcinfo 0 : {
-			*(.debug_srcinfo)
-	}
-	.debug_sfnames 0 : {
-			*(.debug_sfnames)
-	}
-}
+.text
 
+mask_interrupts:
+	CPSID	i
+	MOV	PC, LR
+
+unmask_interrupts:
+	CPSIE	i
+	MOV	PC, LR
+	
+do_isb:	ISB
+	MOV	PC, LR
+
+do_dmb:	DMB
+	MOV	PC, LR
+
+do_wfi:	WFI
+	MOV	PC, LR
+
+do_nop:	NOP
+	NOP
+	MOV	PC, LR

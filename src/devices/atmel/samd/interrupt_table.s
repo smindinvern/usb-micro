@@ -41,12 +41,10 @@
 .global udp_interrupt
 .global sercom0_interrupt
 .global start
-.global do_dmb
-.global do_wfi
 
 interrupt_table:
 .word	0x20001000			/* SP */
-.word	setup + 1			/* reset */
+.word	start + 1			/* reset */
 .word	nmi + 1				/* nmi */
 .word	hard_fault + 1			/* hard fault */
 .word	mem_manage_fault + 1 		/* memmanage fault */
@@ -91,29 +89,3 @@ interrupt_table:
 .word	unused_interrupt + 1		/* I2S */
 .word	unused_interrupt + 1		/* AC1 */
 
-.text
-
-setup:
-	MOVS	R1, #0
-	MSR		CONTROL, R1
-	ISB
-	CPSIE	i
-	BL		start
-
-do_isb:
-	ISB
-	MOV		PC, LR
-
-do_dmb:
-	DMB
-	MOV		PC, LR
-
-do_wfi:
-	WFI
-	MOV		PC, LR
-
-do_nop:
-	NOP
-	NOP
-	MOV		PC, LR
-        

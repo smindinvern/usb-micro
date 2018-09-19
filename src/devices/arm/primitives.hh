@@ -28,92 +28,22 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef MAIN_HH_
-#define MAIN_HH_
-
-#ifndef __cplusplus
-typedef _Bool bool;
-#endif
+#ifndef _PRIMITIVES_HH
+#define _PRIMITIVES_HH
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-	void wait(unsigned short ticks);
+
+	void mask_interrupts();
+	void unmask_interrupts();
+	void do_isb();
+	void do_dmb();
+	void do_wfi();
+	void do_nop();
+	
 #ifdef __cplusplus
 }
 #endif
 
-#ifdef __cplusplus
-template<typename T> class Register
-{
-private:
-	volatile T* reg;
-public:
-	Register(unsigned int address)
-		: reg{ reinterpret_cast<volatile T*>(address) } {}
-	Register(const Register&) = delete;
-	Register(Register&&) = delete;
-
-	Register& operator=(T value)
-	{
-		*reg = value;
-		return *this;
-	}
-	Register& operator|=(T value)
-	{
-		*reg |= value;
-		return *this;
-	}
-	Register& operator&=(T value)
-	{
-		*reg &= value;
-		return *this;
-	}
-
-	operator T()
-	{
-		return *reg;
-	}
-};
-
-typedef Register<unsigned char> Reg8;
-typedef Register<unsigned short> Reg16;
-typedef Register<unsigned int> Reg32;
-#endif
-
-#include "usb.hh"
-#include "i2c.hh"
-
-// Global information needed e.g. for servicing interrupts.
-struct globals {
-	struct usb_status_info usb_info;
-	struct i2c_status_info i2c_info;
-};
-
-inline volatile struct globals* getGlobals()
-{
-	// For C compatibility: cast notation from integral to pointer type should
-	// be equivalent to C++'s reinterpret_cast<>().
-	return (volatile struct globals *)(0x20000000);
-}
-
-inline volatile struct i2c_status_info* getI2CStatusInfo()
-{
-	return &getGlobals()->i2c_info;
-}
-
-inline volatile struct usb_status_info* getUSBStatusInfo()
-{
-	return &getGlobals()->usb_info;
-}
-
-#ifdef __cplusplus
-template<class T> T& getUSBEndpoint(unsigned char ep)
-{
-	volatile struct usb_status_info* usb_status{ getUSBStatusInfo() };
-	return *static_cast<T*>(usb_status->usb_eps[ep]);
-}
-#endif
-
-
-#endif  // MAIN_HH_
+#endif  // _PRIMITIVES_HH

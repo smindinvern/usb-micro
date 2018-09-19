@@ -30,6 +30,7 @@
 
 #include "atsamd21/atsamd21.hh"
 #include "samd_usb.hh"
+#include "primitives.hh"
 
 #include "usb.hh"
 

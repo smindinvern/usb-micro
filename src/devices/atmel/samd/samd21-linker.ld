@@ -39,6 +39,7 @@ SECTIONS
 	.text : {
 			devices/atmel/samd/interrupt_table.o(.text)
 			devices/atmel/samd/interrupt_handlers.o(.text)
+			devices/arm/primitives.o(.text)
 			div.o(.text)
 			devices/arm/arm.o(.text)
 			devices/atmel/samd/samd_init.o(.text)

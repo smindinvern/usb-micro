@@ -37,6 +37,7 @@
 #include "main.hh"
 #include "Invokable.hh"
 #include "arm.hh"
+#include "primitives.hh"
 
 /* defined in interrupt_table.s */
 extern "C" {
@@ -64,6 +65,7 @@ void init();
 extern "C" {
 	void start()
 	{
+		unmask_interrupts();
 		volatile struct usb_status_info* usb_status{ getUSBStatusInfo() };
 		init();
 

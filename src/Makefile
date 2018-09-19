@@ -38,7 +38,7 @@ bin: all
 hex: all
 	$(OBJCOPY) -O ihex UsbController.elf UsbController.hex
 all: $(OBJS)
-	$(CXX) $(CXXFLAGS) $(LINKFLAGS) -o UsbController.elf
+	$(CXX) $(CXXFLAGS) $(LINKFLAGS) $^ -o UsbController.elf
 
 .PHONY: clean
 clean:

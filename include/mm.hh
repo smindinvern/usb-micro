@@ -31,25 +31,23 @@
 #ifndef MM_HH_
 #define MM_HH_
 
-inline int log2(unsigned int n)
+#include "String.h"
+
+constexpr int log2(const unsigned int n)
 {
 	if (n == 0) {
 		return -1;
 	}
-
-	for (int e = 0; ; e++) {
-		n /= 2;
-		if (n == 0) {
-			return e;
-		}
+	else {
+		return log2(n / 2) + 1;
 	}
 }
 
 #define PAGE_SIZE 64
-#define NUM_PAGES 2048
-#define HEAP_LEVELS 12
+#define NUM_PAGES ((size_t )((RAM_SIZE - STACK_SIZE) / PAGE_SIZE))
+#define HEAP_LEVELS (log2(NUM_PAGES) + 1)
 
-typedef unsigned int size_t;
+
 
 extern "C" {
 	void* memcpy(void* dest, const void* src, unsigned int length);

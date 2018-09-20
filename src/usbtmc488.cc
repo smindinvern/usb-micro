@@ -31,12 +31,9 @@
 #include "std.hh"
 #include "usbtmc488.hh"
 #include "Invokable.hh"
+#include "String.h"
 
 char idn_string[] = "Touch Technologies,USB Toucher,0,0\n";
-
-#define MANUFACTURER_NAME (L"Touch Technologies")
-#define PRODUCT_NAME (L"USB Toucher")
-#define SERIAL_NUMBER (L"1337")
 
 int usbtmc488_dev_dep_out_handler(unsigned char MsgID,
 				  unsigned char bTag,
@@ -71,6 +68,15 @@ int usbtmc488_dev_dep_in_handler(USBInEndpoint& in_ep,
 
 struct usbtmc_setup_request_handler : public USBSetupRequestHandler
 {
+protected:
+	const size_t manufacturer_name_size;
+	const size_t product_name_size;
+	const size_t serial_number_size;
+	const wchar_t* manufacturer_name_;
+	const wchar_t* product_name_;
+	const wchar_t* serial_number_;
+
+public:
 	virtual int get_status(USBDevice&, char*) { return 0; }
 	virtual int usb_clear_feature(USBDevice&, char*) { return 0; }
 	virtual int usb_set_feature(USBDevice&, char*) { return 0; }
@@ -93,33 +99,35 @@ struct usbtmc_setup_request_handler : public USBSetupRequestHandler
 
 		unsigned int length = (buf[6] * 0x100) + buf[7];
 
-		char bytes[38] = { 0, STRING };
+		char *bytes = new(std::nothrow) char[length];
+		// Assume (length >= 2)
+		bytes[1] = STRING;
 		switch (buf[2] & 0xff) {
 		case 0:
 			device.ep0.sendData(descriptor0, 4);
 			break;
 		case 4:
-			bytes[0] = 38;
-			memcpy(&bytes[2], MANUFACTURER_NAME, 36);
+			bytes[0] = 2 + manufacturer_name_size;
 			if (bytes[0] < length) {
 				length = bytes[0];
 			}
+			memcpy(&bytes[2], manufacturer_name_, length - 2);
 			device.ep0.sendData(bytes, length);
 			break;
 		case 2:
-			bytes[0] = 24;
-			memcpy(&bytes[2], PRODUCT_NAME, 22);
+			bytes[0] = 2 + product_name_size;
 			if (bytes[0] < length) {
 				length = bytes[0];
 			}
+			memcpy(&bytes[2], product_name_, length - 2);
 			device.ep0.sendData(bytes, length);
 			break;
 		case 3:
-			bytes[0] = 10;
-			memcpy(&bytes[2], SERIAL_NUMBER, 8);
+			bytes[0] = 2 + serial_number_size;
 			if (bytes[0] < length) {
 				length = bytes[0];
 			}
+			memcpy(&bytes[2], serial_number_, length - 2);
 			device.ep0.sendData(bytes, length);
 			break;
 		default:
@@ -132,7 +140,16 @@ struct usbtmc_setup_request_handler : public USBSetupRequestHandler
 	virtual int usb_set_configuration(USBDevice&, char*) { return 0; }
 	virtual int usb_get_interface(USBDevice&, char*) { return 0; }
 	virtual int usb_set_interface(USBDevice&, char*) { return 0; }
-	using USBSetupRequestHandler::USBSetupRequestHandler;
+	usbtmc_setup_request_handler(const wchar_t* manufacturer_name,
+								 const wchar_t* product_name,
+								 const wchar_t* serial_number)
+		: USBSetupRequestHandler()
+		, manufacturer_name_size{ wcslen(manufacturer_name) * sizeof(wchar_t) }
+		, product_name_size{ wcslen(product_name) * sizeof(wchar_t) }
+		, serial_number_size{ wcslen(serial_number) * sizeof(wchar_t) }
+		, manufacturer_name_{ manufacturer_name }
+		, product_name_{ product_name }
+		, serial_number_{ serial_number } {}
 };
 
 USBTMC488Capabilities interface_capabilities = {
@@ -151,7 +168,10 @@ USBTMC488Capabilities interface_capabilities = {
 	false  // dt1Capable
 };
 
-USBTMCDevice create_usbtmc488_device(Invokable<USBDevice(Invokable<USBConfiguration*(unsigned char)>&&)>& cstr,
+USBTMCDevice create_usbtmc488_device(const wchar_t* manufacturer_name,
+									 const wchar_t* product_name,
+									 const wchar_t* serial_number,
+									 Invokable<USBDevice(Invokable<USBConfiguration*(unsigned char)>&&)>& cstr,
 									 Invokable<std::exclusive_ptr<USBOutEndpoint>()>& get_out_ep,
 									 Invokable<std::exclusive_ptr<USBInEndpoint>()>& get_in_ep)
 {
@@ -187,7 +207,10 @@ USBTMCDevice create_usbtmc488_device(Invokable<USBDevice(Invokable<USBConfigurat
 			     });
 	USBTMCDevice tmc_dev{ std::move(dev) };
 
-	usbtmc_setup_request_handler* handler = new(std::nothrow) usbtmc_setup_request_handler{ };
+	usbtmc_setup_request_handler* handler =
+		new(std::nothrow) usbtmc_setup_request_handler{ manufacturer_name,
+														product_name,
+														serial_number };
 	tmc_dev.addSetupRequestHandler(handler);
 	return tmc_dev;
 }

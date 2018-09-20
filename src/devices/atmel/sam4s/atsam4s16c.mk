@@ -5,7 +5,7 @@ DEVDIR:=$(CURDIR)/devices/atmel/sam4s
 ENDIANNESS:=little
 LINK_SCRIPT:=$(DEVDIR)/sam4s-linker.ld
 
-FLAGS:=-mlittle-endian -DATSAM4S -DCHIP_NAME="ATSAM4S16C" -I$(DEVDIR)
+FLAGS:=-mlittle-endian -DATSAM4S -DCHIP_NAME="ATSAM4S16C" -I$(DEVDIR) -include "atsam4s16.hh"
 
 CFLAGS+= $(FLAGS)
 CXXFLAGS+= $(FLAGS)

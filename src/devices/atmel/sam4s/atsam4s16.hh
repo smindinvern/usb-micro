@@ -1,0 +1,7 @@
+#ifndef _ATSAM4S16_HH
+#define _ATSAM4S16_HH
+
+#define FLASH_SIZE 0x00100000
+#define RAM_SIZE   0x00020000
+
+#endif  // _ATSAM4S16_HH

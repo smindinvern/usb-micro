@@ -31,9 +31,11 @@
 #ifndef ATSAMD21X17_HH_
 #define ATSAMD21X17_HH_
 
-#include "atsamd21.hh"
-
+// Ensure that these definitions are observed, even from files which are
+// #include'd via `atsamd21.hh'.
 #define FLASH_SIZE  (0x20000)
 #define RAM_SIZE    (0x4000)
+
+#include "atsamd21.hh"
 
 #endif  // ATSAMD21X17_HH_

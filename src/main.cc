@@ -39,12 +39,6 @@
 #include "arm.hh"
 #include "primitives.hh"
 
-/* defined in interrupt_table.s */
-extern "C" {
-	void do_dmb();
-	void do_wfi();
-}
-
 // define this to make the compiler happy
 extern "C" {
 	void __cxa_pure_virtual()

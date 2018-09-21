@@ -30,12 +30,6 @@
 
 #include "mm.hh"
 
-unsigned int exp2(unsigned int n)
-{
-	// undefined behavior if n == 0?
-	return (1 << n);
-}
-
 unsigned int page_level(unsigned int page)
 {
 	return log2(page) + 1;

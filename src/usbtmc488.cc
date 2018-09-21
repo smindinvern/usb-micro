@@ -97,7 +97,7 @@ public:
 			return 0;
 		}
 
-		unsigned int length = (buf[6] * 0x100) + buf[7];
+		unsigned int length = (buf[7] * 0x100) + buf[6];
 
 		char *bytes = new(std::nothrow) char[length];
 		// Assume (length >= 2)
@@ -133,6 +133,7 @@ public:
 		default:
 			break;
 		}
+		delete bytes;
 		return true;
 	}
 	virtual int usb_set_descriptor(USBDevice&, char*) { return 0; }

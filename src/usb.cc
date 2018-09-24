@@ -110,6 +110,9 @@ USBDevice::USBDevice(USBControlEndpoint ep0_, USBDeviceDescriptor descriptor,
 }
 
 void USBDevice::reset() {
+	if (current_config) {
+		delete current_config;
+	}
 	if (configFactory) {
 		// Endpoints are instantiated here.
 		current_config = configFactory(1);

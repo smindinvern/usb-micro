@@ -30,7 +30,7 @@ endif
 
 ASFLAGS+= $(DEBUG)
 CXXFLAGS+= -std=c++14 -pedantic -Wall -I$(CURDIR) -I$(CURDIR)/../include -nostdinc -nostdlib -ffreestanding -fstrict-aliasing $(OPT_LEVEL) -fshort-wchar -finline -fno-use-cxa-get-exception-ptr -fno-exceptions -fno-rtti $(DEBUG)
-CFLAGS:=-I$(CURDIR) -I$(CURDIR)/../include -pedantic -nostdinc -nostdlib -ffreestanding -fstrict-aliasing -std=c99 $(OPT_LEVEL) -fshort-wchar -finline $(DEBUG)
+CFLAGS+=-I$(CURDIR) -I$(CURDIR)/../include -pedantic -nostdinc -nostdlib -ffreestanding -fstrict-aliasing -std=c99 $(OPT_LEVEL) -fshort-wchar -finline $(DEBUG)
 
 OBJS+= div.o String.o usb.o usbtmc.o usbtmc488.o mm.o main.o
 

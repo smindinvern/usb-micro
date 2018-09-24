@@ -280,6 +280,7 @@
 #define DFLL48M               (0x07UL)
 #define FDPLL96M              (0x08UL)
 
+#ifdef __cplusplus
 inline void setup_gclkgen(const unsigned char gclkgen_id,
 						  const unsigned char source_clock_id,
 						  const unsigned short div,
@@ -331,5 +332,7 @@ inline void set_pin_peripheral(const unsigned int group, const unsigned int pin,
 	const unsigned int pin2{ 1U << (hw ? (pin - 16U) : pin) };
 	set_pins_peripheral(group, pin2, hw, pmux);
 }
+#endif  // __cplusplus
+
 
 #endif  // ATSAMD21_HH_

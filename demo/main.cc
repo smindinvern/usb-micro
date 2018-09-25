@@ -30,7 +30,7 @@
 
 #include "std.hh"
 #include "mm.hh"
-#include "sam_usb.hh"
+#include "samd_usb.hh"
 #include "usb.hh"
 #include "usbtmc.hh"
 #include "usbtmc488.hh"
@@ -79,28 +79,40 @@ extern "C" {
 			1  // 1 configuration
 		};
 
-		__usb_init_usb();
+		samd_usb_init_usb();
+		samd_usb_enable();
+		samd21_ep_desc* descs = new(std::nothrow) samd21_ep_desc[3];
+		Reg32 descadd{ USB_DESCADD };
+		descadd = reinterpret_cast<unsigned int>(descs);
 		
 		Invokable<USBDevice(Invokable<USBConfiguration*(unsigned char)>&&)> cstr = {
 			[&](auto&& fact) -> auto
 			{
-				return create_sam4s_usb_device(device_descriptor, std::move(fact));
+				USBDevice dev{ SAMDUSBControlEndpoint{ 0, 64, descs },
+							   device_descriptor, std::move(fact),
+							   new(std::nothrow) USBDeviceGenericImpl() };
+				return dev;
 			}
 		};
 		Invokable<std::exclusive_ptr<USBInEndpoint>()> get_in_ep = {
 			[&]() -> auto
 			{
-				return std::exclusive_ptr<USBInEndpoint>(new(std::nothrow) AtmelSAMUSBInEndpoint{ 2, USBEndpoint::bulk_ep, 64 });
+				return std::exclusive_ptr<USBInEndpoint>(new(std::nothrow) SAMDUSBInEndpoint{ 2, USBEndpoint::bulk_ep, 64, descs });
 			}
 		};
 		Invokable<std::exclusive_ptr<USBOutEndpoint>()> get_out_ep = {
 			[&]() -> auto
 			{
-				return std::exclusive_ptr<USBOutEndpoint>(new(std::nothrow) AtmelSAMUSBOutEndpoint{ 1, USBEndpoint::bulk_ep, 64 });
+				return std::exclusive_ptr<USBOutEndpoint>(new(std::nothrow) SAMDUSBOutEndpoint{ 1, USBEndpoint::bulk_ep, 64, descs });
 			}
 		};
 
-		USBTMCDevice tmc_dev = create_usbtmc488_device(cstr, get_out_ep, get_in_ep);
+		const wchar_t* manufacturer_name{ L"Touch Technologies" };
+		const wchar_t* product_name{ L"USB Toucher" };
+		const wchar_t* serial_number{ L"1337" };
+		USBTMCDevice tmc_dev = create_usbtmc488_device(manufacturer_name, product_name,
+													   serial_number, cstr, get_out_ep,
+													   get_in_ep);
 		usb_status->device = &tmc_dev;
 		// Configure and enable USB peripheral interrupts.
 		set_interrupt_priority(7, 2);

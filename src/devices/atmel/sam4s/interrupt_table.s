@@ -43,6 +43,7 @@
 .global udp_interrupt
 .global start
 
+.section .vector_table
 interrupt_table:
 .word   0x20001000                      /* SP */
 .word   start + 1                       /* reset */

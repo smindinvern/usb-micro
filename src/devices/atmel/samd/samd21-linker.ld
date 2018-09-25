@@ -37,7 +37,7 @@ MEMORY
 SECTIONS
 {
 	.text : {
-			devices/atmel/samd/interrupt_table.o(.text)
+			*(.vector_table)
 			*(.text)
 			*(.rodata)
 			*(.got)

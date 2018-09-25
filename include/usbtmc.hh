@@ -411,16 +411,16 @@ class USBTMCInterface : public USBInterface
 	int in_token_handler();
 	int class_request_handler(USBControlEndpoint *ep0, char* bytes);
 public:
-	typedef int out_msg_handler(unsigned char MsgID,
-				    unsigned char bTag,
-				    unsigned int transferSize,
-				    char* msgBytes);
-	typedef int in_msg_handler(USBInEndpoint& in_ep,
-				   unsigned char MsgID,
-				   unsigned char bTag,
-				   unsigned int transferSize,
-				   bool useTermChar,
-				   char termChar);
+	typedef Invokable<int(unsigned char MsgID,
+						  unsigned char bTag,
+						  unsigned int transferSize,
+						  char* msgBytes)> out_msg_handler;
+	typedef Invokable<int(USBInEndpoint& in_ep,
+						  unsigned char MsgID,
+						  unsigned char bTag,
+						  unsigned int transferSize,
+						  bool useTermChar,
+						  char termChar)> in_msg_handler;
 
 	int handle_dev_dep_msg_out(char* packet_data, unsigned int bytes);
 	int handle_dev_dep_msg_in(char* packet_data, unsigned int bytes);
@@ -432,11 +432,11 @@ public:
 			std::exclusive_ptr<USBOutEndpoint>&& bulk_out_ep,
 			std::exclusive_ptr<USBInEndpoint>&& bulk_in_ep);
 
-	void addDevDepMsgOutHandler(Invokable<out_msg_handler> handler)
+	void addDevDepMsgOutHandler(out_msg_handler handler)
 	{
 		dev_dep_msg_out_handler = std::move(handler);
 	}
-	void addDevDepMsgInReqHandler(Invokable<in_msg_handler> handler)
+	void addDevDepMsgInReqHandler(in_msg_handler handler)
 	{
 		dev_dep_msg_in_req_handler = std::move(handler);
 	}
@@ -444,8 +444,8 @@ public:
 	// publicly visible records for e.g. USBTMCDevice to manage some things for us
 	unsigned char bulkIn_bTag{};
 private:
-	Invokable<out_msg_handler> dev_dep_msg_out_handler;
-	Invokable<in_msg_handler> dev_dep_msg_in_req_handler;
+	out_msg_handler dev_dep_msg_out_handler;
+	in_msg_handler dev_dep_msg_in_req_handler;
 };
 
 class USBTMCDevice : public USBDevice
@@ -477,5 +477,103 @@ public:
 			});
 	}
 };
+
+struct usbtmc_setup_request_handler : public USBSetupRequestHandler
+{
+protected:
+	const size_t manufacturer_name_size;
+	const size_t product_name_size;
+	const size_t serial_number_size;
+	const wchar_t* manufacturer_name_;
+	const wchar_t* product_name_;
+	const wchar_t* serial_number_;
+
+public:
+	virtual int get_status(USBDevice&, char*) { return 0; }
+	virtual int usb_clear_feature(USBDevice&, char*) { return 0; }
+	virtual int usb_set_feature(USBDevice&, char*) { return 0; }
+	virtual int usb_set_address(USBDevice&, char*) { return 0; }
+	virtual int usb_get_descriptor(USBDevice& device, char* buf)
+	{
+		const char STRING = 3;
+		char descriptor0[4] = {
+			4,
+			STRING,
+			0x09,
+			0x04
+		};
+
+		// this handler only handles string descriptors
+		// higher-level logic should take care of the rest
+		if (buf[3] != STRING) {
+			return 0;
+		}
+
+		unsigned int length = (buf[7] * 0x100) + buf[6];
+
+		char *bytes = new(std::nothrow) char[length];
+		// Assume (length >= 2)
+		bytes[1] = STRING;
+		switch (buf[2] & 0xff) {
+		case 0:
+			device.ep0.sendData(descriptor0, 4);
+			break;
+		case 4:
+			bytes[0] = 2 + manufacturer_name_size;
+			if (bytes[0] < length) {
+				length = bytes[0];
+			}
+			memcpy(&bytes[2], manufacturer_name_, length - 2);
+			device.ep0.sendData(bytes, length);
+			break;
+		case 2:
+			bytes[0] = 2 + product_name_size;
+			if (bytes[0] < length) {
+				length = bytes[0];
+			}
+			memcpy(&bytes[2], product_name_, length - 2);
+			device.ep0.sendData(bytes, length);
+			break;
+		case 3:
+			bytes[0] = 2 + serial_number_size;
+			if (bytes[0] < length) {
+				length = bytes[0];
+			}
+			memcpy(&bytes[2], serial_number_, length - 2);
+			device.ep0.sendData(bytes, length);
+			break;
+		default:
+			break;
+		}
+		delete bytes;
+		return true;
+	}
+	virtual int usb_set_descriptor(USBDevice&, char*) { return 0; }
+	virtual int usb_get_configuration(USBDevice&, char*) { return 0; }
+	virtual int usb_set_configuration(USBDevice&, char*) { return 0; }
+	virtual int usb_get_interface(USBDevice&, char*) { return 0; }
+	virtual int usb_set_interface(USBDevice&, char*) { return 0; }
+	usbtmc_setup_request_handler(const wchar_t* manufacturer_name,
+								 const wchar_t* product_name,
+								 const wchar_t* serial_number)
+		: USBSetupRequestHandler()
+		, manufacturer_name_size{ wcslen(manufacturer_name) * sizeof(wchar_t) }
+		, product_name_size{ wcslen(product_name) * sizeof(wchar_t) }
+		, serial_number_size{ wcslen(serial_number) * sizeof(wchar_t) }
+		, manufacturer_name_{ manufacturer_name }
+		, product_name_{ product_name }
+		, serial_number_{ serial_number } {}
+};
+
+USBTMCDevice create_usbtmc_device(const wchar_t* manufacturer_name,
+								  const wchar_t* product_name,
+								  const wchar_t* serial_number,
+								  const USBTMC_bInterfaceProtocol protocol,
+								  USBTMCCapabilities* capabilities,
+								  const USBDeviceFactory& cstr,
+								  const Invokable<std::exclusive_ptr<USBOutEndpoint>()>& get_out_ep,
+								  const Invokable<std::exclusive_ptr<USBInEndpoint>()>& get_in_ep,
+								  USBTMCInterface::out_msg_handler&& out_handler,
+								  USBTMCInterface::in_msg_handler&& in_handler);
 
 #endif  // USBTMC_HH_

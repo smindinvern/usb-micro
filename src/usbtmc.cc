@@ -461,3 +461,56 @@ int USBTMCDevice::USBTMCSetupRequestHandler::usb_set_interface(USBDevice&, char*
 {
 	return false;
 }
+
+USBTMCDevice create_usbtmc_device(const wchar_t* manufacturer_name,
+								  const wchar_t* product_name,
+								  const wchar_t* serial_number,
+								  const USBTMC_bInterfaceProtocol protocol,
+								  USBTMCCapabilities* capabilities,
+								  const USBDeviceFactory& cstr,
+								  const Invokable<std::exclusive_ptr<USBOutEndpoint>()>& get_out_ep,
+								  const Invokable<std::exclusive_ptr<USBInEndpoint>()>& get_in_ep,
+								  USBTMCInterface::out_msg_handler&& out_handler,
+								  USBTMCInterface::in_msg_handler&& in_handler)
+{
+	USBConfigurationFactory configFactory =
+		[&](unsigned char n) -> USBConfiguration*
+		{
+			if (n != 1) {
+				return nullptr;
+			}
+			USBConfiguration* new_config =
+			new(std::nothrow) USBConfiguration(n);
+			if (!new_config) {
+				return nullptr;
+			}
+
+			// Construct the USBTMC interface.
+			// This will handle sending/receiving of all messages to/from
+			// the host.
+			USBTMCInterface* iface =
+			    new(std::nothrow) USBTMCInterface(protocol,
+												  capabilities,
+												  get_out_ep(),
+												  get_in_ep());
+			if (!iface) {
+				delete new_config;
+				return nullptr;
+			}
+
+			iface->addDevDepMsgOutHandler(std::move(out_handler));
+			iface->addDevDepMsgInReqHandler(std::move(in_handler));
+
+			new_config->interfaces.push_back(iface);
+			return new_config;
+		};
+	USBTMCDevice tmc_dev{ cstr(std::move(configFactory)) };
+
+	usbtmc_setup_request_handler* handler =
+		new(std::nothrow) usbtmc_setup_request_handler{ manufacturer_name,
+														product_name,
+														serial_number };
+	tmc_dev.addSetupRequestHandler(handler);
+	return tmc_dev;
+}
+								  

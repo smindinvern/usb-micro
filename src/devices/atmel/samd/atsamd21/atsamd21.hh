@@ -32,7 +32,7 @@
 #define ATSAMD21_HH_
 
 #include "arm.hh"
-#include "main.hh"
+#include "Registers.hh"
 
 #define CHIP_FAMILY SAMD21
 

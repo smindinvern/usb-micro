@@ -1,0 +1,21 @@
+Import('env')
+
+objs = env.SConscript('../../arm/cortex-m0plus.SConscript')
+
+# Exported for consumption globally.
+env.AppendUnique(CPPPATH=[Dir(x) for x in ['.', 'atsamd21']])
+env.Append(CPPDEFINES=['ATSAMD21'])
+env.AppendUnique(CCFLAGS=['-mlittle-endian'])
+env.Append(LINKFLAGS=['-T', File("samd21-linker.ld")])
+
+files = ['interrupt_table.s', 'interrupt_handlers.cc', 'samd_init.cc']
+
+Import('features')
+
+if "usb" in features:
+    files.append('samd_usb.cc')
+if "i2c" in features:
+    files.append('samd_i2c.cc')
+
+objs += [env.Object(x) for x in files]
+Return('objs')

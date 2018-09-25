@@ -1,0 +1,40 @@
+# Prerequisites:
+#
+# * If cross-building (most likely), @env must be exported, with $CC, $CXX,
+#   $LINK, and $AS defined appropriately.
+# * `STACK_SIZE' must be defined (via $CPPDEFINES).
+# * @features must be exported.  It may contain any or all of ['usb', 'usbtmc', 'usbtmc488', 'i2c']
+# * Construction flags must include all necessary architecture/device-specific flags.
+# * This script is only responsible for building the non-device specific code.
+#   All device-specific code must be compiled by executing one of the SConscript
+#   files in the `devices/*/*/' directories.  This should be done *before*
+#   executing this script, so that all construction variables are appropriately
+#   set for the specific device.
+#
+# This script returns the set of compiled object files, which may then be
+# e.g. linked together into a single firmware image.
+
+Import('env')
+env.AppendUnique(CFLAGS=Split('-pedantic -nostdinc -nostdlib -ffreestanding -fstrict-aliasing -std=c99 -fshort-wchar -finline'))
+env.AppendUnique(CXXFLAGS=Split('-std=c++14 -pedantic -Wall -nostdinc -nostdlib -ffreestanding -fstrict-aliasing -fshort-wchar -finline -fno-use-cxa-get-exception-ptr -fno-exceptions -fno-rtti'))
+env.AppendUnique(CPPPATH=[env.Dir(x) for x in ['.', '../include']])
+env.AppendUnique(LINKFLAGS=Split('-nostdlib -ffreestanding -fshort-wchar'))
+
+files = ['String.c', 'mm.cc', 'main.cc']
+
+Import('features')
+
+if "usb" in features:
+    files.append('usb.cc')
+    env.Append(CPPDEFINES='USING_USB')
+if "usbtmc" in features:
+    files.append('usbtmc.cc')
+    env.Append(CPPDEFINES='USING_USBTMC')
+if "usbtmc488" in features:
+    files.append('usbtmc488.cc')
+    env.Append(CPPDEFINES='USING_USBTMC488')
+if "i2c" in features:
+    env.Append(CPPDEFINES='USING_I2C')
+objs = [env.Object(x) for x in files]
+Return('objs')
+

@@ -1,0 +1,20 @@
+Import('env')
+
+objs = env.SConscript('../../arm/cortex-m4.SConscript')
+
+# Exported for consumption globally.
+env.AppendUnique(CPPPATH=Dir('.'))
+env.Append(CPPDEFINES='ATSAM4S')
+env.AppendUnique(CCFLAGS=['-mlittle-endian'])
+env.Append(LINKFLAGS=['-T', File("sam4s-linker.ld")])
+
+files = ['interrupt_table.s', 'interrupt_handlers.cc', 'atmel_init.cc', 'atmel_timer.cc']
+
+Import('features')
+
+if "usb" in features:
+    files.append(['sam.cc', 'sam_usb.cc', 'atmel_usb.c'])
+
+objs += [env.Object(x) for x in files]
+Return('objs')
+

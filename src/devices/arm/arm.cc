@@ -28,8 +28,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "main.hh"
 #include "arm.hh"
+#include "Registers.hh"
 
 void enable_interrupt(unsigned int interrupt)
 {

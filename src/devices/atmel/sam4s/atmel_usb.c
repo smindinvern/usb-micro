@@ -30,6 +30,7 @@
 
 #include "main.hh"
 #include "sam.hh"
+#include "primitives.hh"
 
 void *malloc(unsigned int);
 void free(void *);

@@ -31,12 +31,16 @@
 #include "main.hh"
 #include "samd_usb.hh"
 
+#ifdef USING_I2C
 void i2c_master_isr();
 void i2c_slave_isr();
+#endif
 
 extern "C" {
+    #ifdef USING_USB
 	void usb_ep_isr(unsigned int);
 	void usb_enable();
+	#endif
   
 	void nmi()
 	{
@@ -107,6 +111,7 @@ extern "C" {
 		return;
 	}
 
+	#ifdef USING_USB
 	void udp_interrupt()
 	{
 		// Check if this is an EORST interrupt
@@ -128,6 +133,7 @@ extern "C" {
 		}
 		return;
 	}
+	#endif
 
 	void sercom0_interrupt()
 	{
@@ -145,12 +151,14 @@ extern "C" {
 		case 0x3:
 			// SPI master
 			return;
+		#ifdef USING_I2C
 		case 0x4:
 			return i2c_slave_isr();
 			// I2C slave
 		case 0x5:
 			// I2C master
 			return i2c_master_isr();
+		#endif
 		default:
 			return;
 		}

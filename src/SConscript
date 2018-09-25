@@ -20,7 +20,7 @@ env.AppendUnique(CXXFLAGS=Split('-std=c++14 -pedantic -Wall -nostdinc -nostdlib 
 env.AppendUnique(CPPPATH=[env.Dir(x) for x in ['.', '../include']])
 env.AppendUnique(LINKFLAGS=Split('-nostdlib -ffreestanding -fshort-wchar'))
 
-files = ['String.c', 'mm.cc', 'main.cc']
+files = ['String.c', 'mm.cc']
 
 Import('features')
 

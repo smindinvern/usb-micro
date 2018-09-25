@@ -373,6 +373,8 @@ struct USBDeviceGenericImpl : USBDeviceImpl
 	}
 };
 
+typedef Invokable<USBConfiguration*(unsigned char)> USBConfigurationFactory;
+
 /**
  * struct USBDevice
  *
@@ -392,7 +394,7 @@ struct USBDevice
 public:
 	USBControlEndpoint ep0;
 protected:
-	Invokable<USBConfiguration*(unsigned char)> configFactory;
+    USBConfigurationFactory configFactory;
 	USBConfiguration* current_config{};
 	Vector<USBSetupRequestHandler*> setup_handlers;
 	Vector<USBClassRequestHandler> class_handlers;
@@ -416,7 +418,7 @@ protected:
 
 public:
 	USBDevice(USBControlEndpoint ep0_, USBDeviceDescriptor descriptor,
-			  Invokable<USBConfiguration*(unsigned char)> configurationFactory,
+			  USBConfigurationFactory configurationFactory,
 			  USBDeviceImpl* privImpl);
 	USBDevice(USBDevice&& other)
 		: ep0{ std::move(other.ep0) },
@@ -480,6 +482,8 @@ public:
 		delete impl;
 	}
 };
+
+typedef Invokable<USBDevice(USBConfigurationFactory&&)> USBDeviceFactory;
 
 #endif  // defined(__cplusplus)
 

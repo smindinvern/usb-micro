@@ -84,8 +84,8 @@ extern "C" {
 		samd21_ep_desc* descs = new(std::nothrow) samd21_ep_desc[3];
 		Reg32 descadd{ USB_DESCADD };
 		descadd = reinterpret_cast<unsigned int>(descs);
-		
-		Invokable<USBDevice(Invokable<USBConfiguration*(unsigned char)>&&)> cstr = {
+
+		USBDeviceFactory cstr = {
 			[&](auto&& fact) -> auto
 			{
 				USBDevice dev{ SAMDUSBControlEndpoint{ 0, 64, descs },

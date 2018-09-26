@@ -8,7 +8,7 @@ env.Append(CPPDEFINES=['ATSAMD21'])
 env.AppendUnique(CCFLAGS=['-mlittle-endian'])
 env.Append(LINKFLAGS=['-T', File("samd21-linker.ld")])
 
-files = ['interrupt_table.s', 'interrupt_handlers.cc', 'samd_init.cc']
+files = ['interrupt_table.s', 'interrupt_handlers.cc', 'samd_init.cc', 'samd_gpio.cc']
 
 Import('features')
 

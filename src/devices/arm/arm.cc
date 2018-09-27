@@ -47,13 +47,27 @@ void set_interrupt_priority(unsigned int interrupt,
 	nvic_ipr = (nvic_ipr & ~(0b11 << (8*interrupt + 6))) | ((priority & 0b11) << (8*interrupt + 6));
 }
 
-void wait_n_systicks(unsigned short n)
+void wait_n_systicks(unsigned int n)
 {
 	Reg32 syst_rvr{ ARM_SYST_RVR };
-	syst_rvr = n;
+	syst_rvr = n & 0x00FFFFFF;
 	Reg32 syst_cvr{ ARM_SYST_CVR };
 	syst_cvr = 0;
 	Reg32 syst_csr{ ARM_SYST_CSR };
 	syst_csr = (1 << 2) | 1;
 	while ((syst_csr & (1 << 16)) == 0);
+}
+
+unsigned int systick_get_tenms()
+{
+	Reg32 syst_calib{ ARM_SYST_CALIB };
+	return syst_calib & 0x00FFFFFF;
+}
+
+void wait_n_10ms_periods(unsigned short n)
+{
+	unsigned int tenms{ systick_get_tenms() };
+	for (unsigned short i = 0; i < n; i++) {
+		wait_n_systicks(tenms);
+	}
 }

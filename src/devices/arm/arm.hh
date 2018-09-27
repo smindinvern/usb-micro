@@ -37,7 +37,9 @@ extern "C" {
 	void enable_interrupt(unsigned int interrupt);
 	void set_interrupt_priority(unsigned int interrupt,
 								unsigned char priority);
-	void wait_n_systicks(unsigned short n);
+	void wait_n_systicks(unsigned int n);
+	unsigned int systick_get_tenms();
+	void wait_n_10ms_periods(unsigned short n);
 #ifdef __cplusplus
 }
 #endif

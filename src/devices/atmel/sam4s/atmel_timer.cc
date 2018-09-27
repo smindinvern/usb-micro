@@ -28,12 +28,13 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "sam4s.hh"
 #include "main.hh"
 
 void wait_n_ticks(unsigned short ticks)
 {
-	Reg32 tc_ccr0{ 0x40010000 };
-	Reg32 tc_cv0{ 0x40010010 };
+	Reg32 tc_ccr0{ TC_CCR(0) };
+	Reg32 tc_cv0{ TC_CV(0) };
 
 	tc_ccr0 = (1 << 2);
 
@@ -42,11 +43,11 @@ void wait_n_ticks(unsigned short ticks)
 
 void setup_timer(unsigned int timer)
 {
-	Reg32 tc_wpmr{ 0x400100e4 };
-	Reg32 tc_ccr{ 0x40010000 + (timer * 0x40) };
-	Reg32 tc_cmr{ 0x40010004 + (timer * 0x40) };
-	Reg32 tc_ier{ 0x40010024 + (timer * 0x40) };
-	Reg32 pmc_pcer0{ 0x400e0410 };
+	Reg32 tc_wpmr{ TC_WPMR };
+	Reg32 tc_ccr{ TC_CCR(timer) };
+	Reg32 tc_cmr{ TC_CMR(timer) };
+	Reg32 tc_ier{ TC_IER(timer) };
+	Reg32 pmc_pcer0{ PMC_PCER0 };
 
 	pmc_pcer0 = (1 << (23 + timer));  // enable TC peripheral clock
 	tc_wpmr = 0x54494d00;  // disable write protection on TC registers

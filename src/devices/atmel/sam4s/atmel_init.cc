@@ -28,6 +28,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "arm.hh"
+#include "sam4s.hh"
 #include "main.hh"
 #include "usb.hh"
 #include "mm.hh"
@@ -35,14 +37,14 @@
 
 void setup_clocks()
 {
-	Reg32 pmc_wpmr{ 0x400e04e4 };
-	Reg32 ckgr_mor{ 0x400e0420 };
-	Reg32 pmc_sr{ 0x400e0468 };
-	Reg32 ckgr_pllar{ 0x400e0428 };
-	Reg32 ckgr_pllbr{ 0x400e042c };
-	Reg32 pmc_mckr{ 0x400e0430 };
-	Reg32 pmc_usb{ 0x400e0438 };
-	Reg32 pmc_scer{ 0x400e0400 };
+	Reg32 pmc_wpmr{ PMC_WPMR };
+	Reg32 ckgr_mor{ CKGR_MOR };
+	Reg32 pmc_sr{ PMC_SR };
+	Reg32 ckgr_pllar{ CKGR_PLLAR };
+	Reg32 ckgr_pllbr{ CKGR_PLLBR };
+	Reg32 pmc_mckr{ PMC_MCKR };
+	Reg32 pmc_usb{ PMC_USB };
+	Reg32 pmc_scer{ PMC_SCER };
 
 	pmc_wpmr = 0x504d4300; /* turn PMC write protect off */
 	ckgr_mor = 0x370000 | ((ckgr_mor & ~(1 << 1)) | 1); /* clear main xtal oscillator bypass and set main xtal oscillator enable */
@@ -65,10 +67,10 @@ void setup_clocks()
 
 void init()
 {
-	Reg32 scb_actlr{ 0xe000e008 };
-	Reg32 scb_shcsr{ 0xe000ed24 };
-	Reg32 eefc_fmr{ 0x400e0a00 };
-	Reg32 wdt_mr{ 0x400e1454 };
+	Reg32 scb_actlr{ ARM_ACTLR };
+	Reg32 scb_shcsr{ ARM_SCB_SHCSR };
+	Reg32 eefc_fmr{ EEFC_FMR(0) };
+	Reg32 wdt_mr{ WDT_MR };
 
 	wdt_mr |= (1 << 15);  /* disable the watchdog timer */
 	eefc_fmr = (5 << 8);  /* set wait states to 5 */

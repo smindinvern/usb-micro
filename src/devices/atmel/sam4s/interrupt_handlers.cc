@@ -28,6 +28,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "sam4s.hh"
 #include "main.hh"
 
 extern "C" {
@@ -96,7 +97,7 @@ extern "C" {
 
 	void timer_interrupt(void)
 	{
-        volatile unsigned int *pio_odsr = (unsigned int *)(0x400e1238);
+        volatile unsigned int *pio_odsr = (unsigned int *)(PIO_ODSR(1));
 
         *pio_odsr ^= (1 << 10);
 
@@ -105,8 +106,8 @@ extern "C" {
 
 	void udp_interrupt(void)
 	{
-        volatile unsigned int *udp_isr = (unsigned int *)(0x4003401c);
-        volatile unsigned int *udp_icr = (unsigned int *)(0x40034020);
+        volatile unsigned int *udp_isr = (unsigned int *)(UDP_ISR);
+        volatile unsigned int *udp_icr = (unsigned int *)(UDP_ICR);
 
         while (*udp_isr) {
 			if (*udp_isr & (1 << 12)) {

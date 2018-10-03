@@ -44,8 +44,6 @@ enum {
 	DEVICE_QUALIFIER,
 	OTHER_SPEED_CONFIGURATION,
 	INTERFACE_POWER,
-	HID_CLASS = 0x21,
-	REPORT
 };
 
 /* request types */
@@ -319,40 +317,6 @@ struct USBEndpointDescriptor : public USBRawEndpointDescriptor
 					bInterval }) {}
 	USBEndpointDescriptor(const USBEndpointDescriptor&) = default;
 	USBEndpointDescriptor(USBEndpointDescriptor&&) = default;
-};
-
-using USBRawHIDDescriptor = USBDescriptor<HID_CLASS,
-					  unsigned short /* bcdHID */,
-					  unsigned char /* bCountryCode */,
-					  unsigned char /* bNumDescriptors */,
-					  unsigned char /* bDescriptorType2 */,
-					  unsigned short /* wDescriptorLength */>;
-
-struct USBHIDDescriptor : public USBRawHIDDescriptor
-{
-	enum {
-		hid_bLength = 0,
-		hid_bDescriptorType,
-		hid_bcdHID,
-		hid_bCountryCode = hid_bcdHID + 2,
-		hid_bNumDescriptors,
-		hid_bDescriptorType2,
-		hid_wDescriptorLength,
-		hid_size = hid_wDescriptorLength + 2
-	};
-
-	USBHIDDescriptor(unsigned short bcdHID,
-			 unsigned char bCountryCode,
-			 unsigned char bNumDescriptors,
-			 unsigned char bDescriptorType2,
-			 unsigned short wDescriptorLength)
-		: USBRawHIDDescriptor({ bcdHID,
-					bCountryCode,
-					bNumDescriptors,
-					bDescriptorType2,
-					wDescriptorLength }) {}
-	USBHIDDescriptor(const USBHIDDescriptor&) = default;
-	USBHIDDescriptor(USBHIDDescriptor&&) = default;
 };
 
 #define usb_func(x) \

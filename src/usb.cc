@@ -34,22 +34,6 @@
 #include "usb_private.hh"
 #include "mm.hh"
 
-/* defined in interrupt_table.s */
-
-enum {
-	GET_STATUS = 0,
-	CLEAR_FEATURE,
-	SET_FEATURE = 3,
-	SET_ADDRESS = 5,
-	GET_DESCRIPTOR,
-	SET_DESCRIPTOR,
-	GET_CONFIGURATION,
-	SET_CONFIGURATION,
-	GET_INTERFACE,
-	SET_INTERFACE,
-	SYNCH_FRAME
-};
-
 /* USB states */
 enum {
 	ATTACHED_STATE,

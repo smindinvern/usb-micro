@@ -132,6 +132,7 @@ public:
 	unsigned char ep_number;
 	ep_type type;
 	unsigned short max_packet_size;
+	unsigned char interval_ms;
 	bool stalled{};
 
 	void reset() { return (impl->reset)(); }
@@ -142,11 +143,13 @@ public:
 
 	/* endpointNumber: bit 8 - 1 for IN endpoints, 0 otherwise */
 	USBEndpoint(unsigned char endpointNumber, ep_type endpointType,
-		    unsigned short maxPacketSize, USBEndpointImpl* implementation)
+				unsigned short maxPacketSize, unsigned char interval,
+				USBEndpointImpl* implementation)
 		: impl{ implementation },
 		  ep_number{ endpointNumber },
 		  type{ endpointType },
-		  max_packet_size { maxPacketSize } {}
+		  max_packet_size{ maxPacketSize },
+		  interval_ms{ interval } {}
 	~USBEndpoint()
 	{
 		delete impl;
@@ -156,7 +159,8 @@ public:
 		: impl{ rhs.impl },
 		  ep_number{ rhs.ep_number },
 		  type{ rhs.type },
-		  max_packet_size{ rhs.max_packet_size }
+		  max_packet_size{ rhs.max_packet_size },
+		  interval_ms{ rhs.interval_ms }
 	{
 		rhs.impl = nullptr;
 	}
@@ -173,9 +177,10 @@ struct USBInEndpoint : public USBEndpoint
 	using USBEndpoint::sendZLP;
 
 	USBInEndpoint(unsigned char endpointNumber, USBEndpoint::ep_type endpointType,
-		      unsigned short maxPacketSize, USBEndpointImpl* impl)
+				  unsigned short maxPacketSize, unsigned char interval,
+				  USBEndpointImpl* impl)
 		: USBEndpoint{ (unsigned char)(endpointNumber | 0x80), endpointType,
-			maxPacketSize, impl } {}
+			maxPacketSize, interval, impl } {}
 	USBInEndpoint(const USBInEndpoint&) = delete;
 	USBInEndpoint(USBInEndpoint&&) = default;
 };
@@ -194,9 +199,10 @@ struct USBOutEndpoint : public USBEndpoint
 	using USBEndpoint::receiveData;
 
 	USBOutEndpoint(unsigned char endpointNumber, USBEndpoint::ep_type endpointType,
-		       unsigned short maxPacketSize, USBEndpointImpl* impl)
+				   unsigned short maxPacketSize, unsigned char interval,
+				   USBEndpointImpl* impl)
 		: USBEndpoint{ (unsigned char)(endpointNumber & ~0x80), endpointType,
-			maxPacketSize, impl } {}
+			maxPacketSize, interval, impl } {}
 	USBOutEndpoint(const USBOutEndpoint&) = delete;
 	USBOutEndpoint(USBOutEndpoint&&) = default;
 };
@@ -214,9 +220,9 @@ struct USBControlEndpoint : public USBEndpoint
 	using USBEndpoint::receiveSetup;
 
 	USBControlEndpoint(unsigned char endpointNumber, unsigned short maxPacketSize,
-			   USBEndpointImpl* impl)
+					   USBEndpointImpl* impl)
 		: USBEndpoint{ (unsigned char)(endpointNumber & ~0x80),
-			USBEndpoint::control_ep, maxPacketSize, impl } {}
+			USBEndpoint::control_ep, maxPacketSize, 0, impl } {}
 	USBControlEndpoint(const USBControlEndpoint&) = delete;
 	USBControlEndpoint(USBControlEndpoint&&) = default;
 };

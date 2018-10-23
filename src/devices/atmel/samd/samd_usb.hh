@@ -299,8 +299,9 @@ struct SAMDUSBInEndpoint : public USBInEndpoint {
 	SAMDUSBInEndpoint(unsigned char epNum,
 					  USBEndpoint::ep_type epType,
 					  unsigned short maxPackSize,
+					  unsigned char interval,
 					  samd21_ep_desc* descs)
-		: USBInEndpoint((unsigned char)(epNum | 0x80), epType, maxPackSize,
+		: USBInEndpoint((unsigned char)(epNum | 0x80), epType, maxPackSize, interval,
 						new(std::nothrow) SAMDUSBEndpointImpl(epNum, false, epType, maxPackSize, descs)) {}
 	SAMDUSBInEndpoint(const SAMDUSBInEndpoint&) = delete;
 	SAMDUSBInEndpoint(SAMDUSBInEndpoint&&) = default;
@@ -310,8 +311,9 @@ struct SAMDUSBOutEndpoint : public USBOutEndpoint {
 	SAMDUSBOutEndpoint(unsigned char epNum,
 					   USBEndpoint::ep_type epType,
 					   unsigned short maxPackSize,
+					   unsigned char interval,
 					   samd21_ep_desc* descs)
-		: USBOutEndpoint(epNum, epType, maxPackSize,
+		: USBOutEndpoint(epNum, epType, maxPackSize, interval,
 						 new(std::nothrow) SAMDUSBEndpointImpl(epNum, true, epType, maxPackSize, descs)) {}
 	SAMDUSBOutEndpoint(const SAMDUSBOutEndpoint&) = delete;
 	SAMDUSBOutEndpoint(SAMDUSBOutEndpoint&&) = default;

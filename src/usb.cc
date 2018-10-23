@@ -220,7 +220,7 @@ int USBDevice::DefaultSetupRequestHandler::usb_get_descriptor(USBDevice& device,
 		}
 		auto copy_ep_descriptor = [&](USBEndpoint* ep) mutable -> int {
 			if (copy_descriptor(USBEndpointDescriptor{ ep->ep_number, (unsigned char)(ep->type),
-							ep->max_packet_size, 0 }, offset) < 0) {
+							ep->max_packet_size, ep->interval_ms }, offset) < 0) {
 				return -1;
 			}
 			return 0;

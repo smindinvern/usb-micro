@@ -285,6 +285,7 @@ struct USBInterface
 	Vector<Tuple<unsigned int, Invokable<int(char*, unsigned int)>>> outTokenHandlers;
 	Vector<Tuple<unsigned int, Invokable<int()>>> inTokenHandlers;
 	Vector<Invokable<int(USBControlEndpoint*, char*)>> classRequestHandlers;
+	Vector<char> classDescriptors;
 	
 	void addInEndpoint(USBInEndpoint* ep, Invokable<int()> handler = {})
 	{
@@ -307,6 +308,17 @@ struct USBInterface
 		classRequestHandlers.push_back(std::move(handler));
 	}
 
+	int interfaceRequest(USBControlEndpoint* ep0,
+						 char* request)
+	{
+		for (size_t i = 0; i < classRequestHandlers.size(); i++) {
+			int status{ classRequestHandlers[i](ep0, request) };
+			if (status != false) {
+				return status;
+			}
+		}
+		return false;
+	}
 	USBInterface(unsigned char iface_class,
 		     unsigned char iface_subclass, unsigned char iface_protocol)
 		: bInterfaceClass{ iface_class },
@@ -381,6 +393,34 @@ struct USBDeviceGenericImpl : USBDeviceImpl
 
 typedef Invokable<USBConfiguration*(unsigned char)> USBConfigurationFactory;
 
+struct InProgressTransfer
+{
+	size_t total_bytes{};
+	size_t bytes_so_far{};
+	char* bytes{};
+	InProgressTransfer() = default;
+	InProgressTransfer(size_t total)
+		: total_bytes{ total },
+		  bytes{ new(std::nothrow) char[total] } {}
+	void append(char* new_bytes, size_t size)
+	{
+		size_t remaining_bytes{ total_bytes - bytes_so_far };
+		size_t copy_size{ remaining_bytes < size ? remaining_bytes : size };
+		memcpy(bytes + bytes_so_far, new_bytes, copy_size);
+		bytes_so_far += copy_size;
+	}
+	operator bool()
+	{
+		bool started{ total_bytes != 0 };
+		bool completed{ bytes_so_far == total_bytes };
+		return started && !completed;
+	}
+	~InProgressTransfer()
+	{
+		delete[] bytes;
+	}
+};
+
 /**
  * struct USBDevice
  *
@@ -406,6 +446,7 @@ protected:
 	Vector<USBClassRequestHandler> class_handlers;
 	USBDeviceDescriptor dev_descriptor;
 	USBDeviceImpl* impl;
+	InProgressTransfer inProgressSetupTransaction{};
 	
 	struct DefaultSetupRequestHandler : public USBSetupRequestHandler
 	{
@@ -447,6 +488,9 @@ public:
 	int setup_token_received(char* buffer, unsigned int size);
 	int in_token_received(unsigned int ep);
 	int out_token_received(unsigned int ep);
+protected:
+	int process_setup_transaction(char* buffer, unsigned int size);
+public:
 	
 	void addSetupRequestHandler(USBSetupRequestHandler* new_handler)
 	{
@@ -477,6 +521,15 @@ public:
 		}
 
 		return nullptr;
+	}
+
+	USBInterface* getInterface(unsigned int ifN)
+	{
+		USBConfiguration& config(*current_config);
+		if (ifN >= config.interfaces.size()) {
+			return nullptr;
+		}
+		return config.interfaces[ifN];
 	}
 	
 	virtual ~USBDevice()

@@ -181,18 +181,21 @@ int USBDevice::DefaultSetupRequestHandler::usb_get_descriptor(USBDevice& device,
 			ept.stall();
 			return true;
 		}
-		unsigned int total_length{ USBConfigurationDescriptor::size()
-				+ device.current_config->interfaces.size() * USBInterfaceDescriptor::size()
-				+ ([&]() -> unsigned short
-			{
-				unsigned short num_endpoints{};
-				for (unsigned int i = 0; i < device.current_config->interfaces.size(); i++) {
-					num_endpoints += device.current_config->interfaces[i]->inEndpoints.size();
-					num_endpoints += device.current_config->interfaces[i]->outEndpoints.size();
-				}
-				return num_endpoints;
-			})() * USBEndpointDescriptor::size()
-				};
+		unsigned int total_length{};
+		// One configuration descriptor per configuration.
+		total_length += USBConfigurationDescriptor::size();
+		for (unsigned int i = 0; i < device.current_config->interfaces.size(); i++) {
+			USBInterface* iface{ device.current_config->interfaces[i] };
+			// One interface descriptor per interface of the currently-selected
+			// configuration.
+			total_length += USBInterfaceDescriptor::size();
+			// Each interface can have zero or more associated class
+			// descriptors.
+			total_length += iface->classDescriptors.size();
+			// Each interface can have zero or more associated endpoints.
+			unsigned short num_endpoints = iface->inEndpoints.size() + iface->outEndpoints.size();
+			total_length += num_endpoints * USBEndpointDescriptor::size();
+		}
 						
 		unsigned int max_size{ total_length > descriptorSize ? descriptorSize : total_length };
 		char* data_buffer{ new(std::nothrow) char[max_size] };
@@ -231,6 +234,9 @@ int USBDevice::DefaultSetupRequestHandler::usb_get_descriptor(USBDevice& device,
 							iface->bInterfaceClass,	iface->bInterfaceSubClass, iface->bInterfaceProtocol, 0 }, offset) < 0) {
 				goto error;
 			}
+			unsigned int copy_size{ ((offset + iface->classDescriptors.size()) <= max_size) ? iface->classDescriptors.size() : (max_size - offset) };
+			memcpy(&data_buffer[offset], iface->classDescriptors.c_ptr(), copy_size);
+			offset += copy_size;
 			for (unsigned int j = 0; j < iface->inEndpoints.size(); j++) {
 				if (copy_ep_descriptor(iface->inEndpoints[j]) < 0) {
 					goto error;
@@ -342,6 +348,19 @@ int USBDevice::DefaultSetupRequestHandler::usb_set_interface(USBDevice&, char*)
 
 int USBDevice::in_token_received(unsigned int ep)
 {
+	USBInterface& iface(*current_config->interfaces[0]);
+	for (unsigned int i = 0; i < iface.inTokenHandlers.size(); i++) {
+		if (iface.inTokenHandlers[i].first == ep) {
+			auto& handler(iface.inTokenHandlers[i].second);
+			int status{ handler() };
+			if (status < 0) {
+				return status;
+			}
+			else if (status > 0) {
+				break;
+			}
+		}
+	}
 	return 0;
 }
 
@@ -349,6 +368,30 @@ int USBDevice::out_token_received(unsigned int ep)
 {
 	char* data{};
 	unsigned int length{};
+
+	if (ep == 0) {
+		// This is the DATA OUT stage of a SETUP transaction on the default control endpoint.
+		data = ep0.receiveData(length);
+		if (length == 0) {
+			return 0;
+		}
+		if (inProgressSetupTransaction) {
+			// A SETUP transaction with a DATA OUT stage is in progress.
+			inProgressSetupTransaction.append(data, length);
+			delete[] data;
+			if (inProgressSetupTransaction) {
+				// We still have more data to receive.
+				// Return and wait for the next packet to arrive.
+				return 0;
+			}
+			else {
+				int status = process_setup_transaction(inProgressSetupTransaction.bytes,
+													   inProgressSetupTransaction.total_bytes);
+				inProgressSetupTransaction = {};
+				return status;
+			}
+		}
+	}
 	
 	// find out if this is an IN or OUT endpoint
 	USBInterface& iface(*current_config->interfaces[0]);  // FIXME: there should be a pointer to the currently selected interface
@@ -402,39 +445,52 @@ extern "C" {
 	}
 }
 
-
-};
-
 int usb_reserved(volatile char* buf) { return 0; }
 
-int USBDevice::setup_token_received(char* buffer, unsigned int size)
+static
+int (USBSetupRequestHandler::* const usb_functions[13])(USBDevice&, char*) = {
+	&USBSetupRequestHandler::get_status,
+	&USBSetupRequestHandler::usb_clear_feature,
+	nullptr,
+	&USBSetupRequestHandler::usb_set_feature,
+	nullptr,
+	&USBSetupRequestHandler::usb_set_address,
+	&USBSetupRequestHandler::usb_get_descriptor,
+	&USBSetupRequestHandler::usb_set_descriptor,
+	&USBSetupRequestHandler::usb_get_configuration,
+	&USBSetupRequestHandler::usb_set_configuration,
+	&USBSetupRequestHandler::usb_get_interface,
+	&USBSetupRequestHandler::usb_set_interface,
+	nullptr
+};
+
+int USBDevice::process_setup_transaction(char* buffer, unsigned int size)
 {
-	if (!buffer || size < USBStandardDeviceRequest::size()) {
-		ep0.stall();
-		return -1;
+	USBStandardDeviceRequest req{ buffer };
+	const unsigned char& bmRequestType{ req.bmRequestType() };
+	
+	// First determine who this request is for.
+	const unsigned char recipient = bmRequestType & 0x1F;
+	switch (recipient) {
+	case 0:  // Device
+		break;
+	case 1:  // Interface
+	{
+		unsigned short wIndex{ req.wIndex() };
+		// Guaranteed to exist by checks in setup_token_received().
+		USBInterface* iface{ getInterface(wIndex) };
+		int status{ iface->interfaceRequest(&ep0, buffer) };
+		return status;
+	}
+	case 2:  // Endpoint
+		// Endpoint handlers not implemented yet.  Fall back to device handlers.
+		break;
+	default:
+		break;
 	}
 
-	USBStandardDeviceRequest req{ buffer };
-
-	const unsigned int& bmRequestType{ req.bmRequestType() };
 	const unsigned int& bRequest{ req.bRequest() };
 	char type{ char((bmRequestType & 0x60) >> 5) };
-
-	int (USBSetupRequestHandler::* usb_functions[13])(USBDevice&, char*) = {
-		&USBSetupRequestHandler::get_status,
-		&USBSetupRequestHandler::usb_clear_feature,
-		nullptr,
-		&USBSetupRequestHandler::usb_set_feature,
-		nullptr,
-		&USBSetupRequestHandler::usb_set_address,
-		&USBSetupRequestHandler::usb_get_descriptor,
-		&USBSetupRequestHandler::usb_set_descriptor,
-		&USBSetupRequestHandler::usb_get_configuration,
-		&USBSetupRequestHandler::usb_set_configuration,
-		&USBSetupRequestHandler::usb_get_interface,
-		&USBSetupRequestHandler::usb_set_interface,
-		nullptr
-	};
 
 	const char STANDARD = 0;
 	const char CLASS = 1;
@@ -468,7 +524,76 @@ int USBDevice::setup_token_received(char* buffer, unsigned int size)
 	default:
 		goto error;
 	}
+	return 0;
+error:
+	ep0.stall();
+	return -1;
+}
 
+int USBDevice::setup_token_received(char* buffer, unsigned int size)
+{
+	if (!buffer || size != USBStandardDeviceRequest::size()) {
+		ep0.stall();
+		return -1;
+	}
+	// If there is a DATA-OUT stage, receive the incoming data.
+	USBStandardDeviceRequest req{ buffer };
+	const unsigned char& bmRequestType{ req.bmRequestType() };
+	const unsigned short& wLength{ req.wLength() };
+	const bool data_out_stage{ (bmRequestType & 0x80) == 0 && wLength != 0 };
+	if (data_out_stage) {
+		inProgressSetupTransaction = InProgressTransfer{ size + wLength };
+		if (!inProgressSetupTransaction.bytes) {
+			inProgressSetupTransaction = {};
+			ep0.stall();
+			return -1;
+		}
+		inProgressSetupTransaction.append(buffer, size);
+		// Fall through and check for errors.
+	}
+	else {
+		return process_setup_transaction(buffer, size);
+	}
+
+	// First determine who this request is for.
+	const unsigned char recipient = bmRequestType & 0x1F;
+	switch (recipient) {
+	case 0:  // Device
+		break;
+	case 1:  // Interface
+	{
+		unsigned short wIndex{ req.wIndex() };
+		USBInterface* iface{ getInterface(wIndex) };
+		if (!iface) {
+			ep0.stall();
+			return -1;
+		}
+		return 0;
+	}
+	case 2:  // Endpoint
+		// Endpoint handlers not implemented yet.  Fall back to device handlers.
+		break;
+	default:
+		break;
+	}
+
+	const unsigned int& bRequest{ req.bRequest() };
+	char type{ char((bmRequestType & 0x60) >> 5) };
+
+	const char STANDARD = 0;
+	const char CLASS = 1;
+	
+	switch (type) {
+	case STANDARD:
+		if (bRequest > 12 || usb_functions[bRequest] == nullptr) {
+			goto error;
+		}
+		break;
+	case CLASS:
+		break;
+	default:
+		goto error;
+	}
 	return 0;
 error:
 	ep0.stall();

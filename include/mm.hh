@@ -74,6 +74,7 @@ private:
 public:
 	MemoryManager()
 	{
+		memset(heap, 0, NUM_PAGES * PAGE_SIZE);
 		//		base_address = (reinterpret_cast<unsigned int>(this) & ~0b11) + 4;
 		/* mark the first (NUM_PAGES/PAGE_SIZE) page as allocated
 		   to account for the memory we take up */

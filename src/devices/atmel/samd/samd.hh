@@ -31,8 +31,7 @@
 #ifndef MICROCHIP_HH_
 #define MICROCHIP_HH_
 
-#define glue(a, b)  a ## b
-#define xglue(a, b) glue(a, b)
+#include "macros.hh"
 
 #define CODE_BASE         (xglue(CHIP_FAMILY, _CODE_BASE))
 #define SRAM_BASE         (xglue(CHIP_FAMILY, _SRAM_BASE))

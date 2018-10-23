@@ -363,13 +363,6 @@ struct USBTMCInterfaceDescriptor : public USBInterfaceDescriptor
 //   0x5c        '\' 
 // there must not be any leading or trailing space characters
 
-struct InProgressTransfer
-{
-	unsigned int total_bytes{};
-	unsigned int bytes_so_far{};
-	char* bytes{};
-};
-
 struct USBTMCBulkOutState
 {
 	enum  {

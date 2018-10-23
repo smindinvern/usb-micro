@@ -51,14 +51,24 @@ extern "C" {
 
     void sam_usb_wait_for_tx_ready(const unsigned int ep) {
 		Reg32 udp_csr{ UDP_CSR(ep) };
-	while (udp_csr & (1 << 4)) {
-	    wait(10);
-	}
+		while (udp_csr & (1 << 4)) {
+			wait(10);
+		}
+    }
+
+    bool sam_usb_tx_completed(const unsigned int ep) {
+		Reg32 udp_csr{ UDP_CSR(ep) };
+		return !!(udp_csr & 1);
+    }
+
+    void sam_usb_ack_tx_completed(const unsigned int ep) {
+		Reg32 udp_csr{ UDP_CSR(ep) };
+		udp_csr &= ~1;
     }
 
     void sam_usb_set_tx_ready(const unsigned int ep) {
 		Reg32 udp_csr{ UDP_CSR(ep) };
-	udp_csr |= (1 << 4);
+		udp_csr |= (1 << 4);
     }
 
     void sam_usb_load_from_fifo(const unsigned int ep, char * const data,
@@ -69,22 +79,12 @@ extern "C" {
 	}
     }
     
-    void sam_usb_load_to_fifo(const unsigned int ep, char * const data,
+    void sam_usb_load_to_fifo(const unsigned int ep, const char * const data,
 			      const unsigned int length) {
 		Reg32 udp_fdr{ UDP_FDR(ep) };
 	for (unsigned int i = 0; i < length; i++) {
 	    udp_fdr = data[i];
 	}
-    }
-
-    bool sam_usb_tx_completed(const unsigned int ep) {
-		Reg32 udp_csr{ UDP_CSR(ep) };
-	return !!(udp_csr & 1);
-    }
-
-    void sam_usb_ack_tx_completed(const unsigned int ep) {
-		Reg32 udp_csr{ UDP_CSR(ep) };
-	udp_csr &= ~1;
     }
 
     bool sam_usb_out_rxd(const unsigned int ep) {

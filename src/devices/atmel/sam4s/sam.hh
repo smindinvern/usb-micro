@@ -51,7 +51,7 @@ extern "C" {
 	void sam_usb_set_tx_ready(const unsigned int ep);
 	void sam_usb_load_from_fifo(const unsigned int ep, char * const data,
 				    const unsigned int length);
-	void sam_usb_load_to_fifo(const unsigned int ep, char * const data,
+	void sam_usb_load_to_fifo(const unsigned int ep, const char * const data,
 				  const unsigned int length);
 	bool sam_usb_tx_completed(const unsigned int ep);
 	void sam_usb_ack_tx_completed(const unsigned int ep);

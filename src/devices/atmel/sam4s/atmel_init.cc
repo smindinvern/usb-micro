@@ -53,11 +53,13 @@ void setup_clocks()
 	ckgr_mor = 0x370000 | (ckgr_mor | (1 << 24));
 	
 	while (!(pmc_sr & 1)) {} /* wait for main xtal oscillator to lock */
-	
-	ckgr_pllar = (1 << 29) | (1 << 16) | (0x3f << 8) | 2; /* set PLLA multiplier to 2 and divider to 6 */
+	Reg32 eefc_fmr{ EEFC_FMR(0) };
+	eefc_fmr = 0x04000200;
+	do_dmb();
+	ckgr_pllar = (1 << 29) | (9 << 16) | (0x3f << 8) | 2; /* set PLLA multiplier to 2 and divider to 6 */
 	while (!(pmc_sr & (1 << 1))) {} /* wait for PLLA to lock */
 	
-	ckgr_pllbr = (3 << 16) | (0x3f << 8) | 1; /* set PLLB multiplier to 4 and divider to 1 */
+	ckgr_pllbr = (7 << 16) | (0x3f << 8) | 2; /* set PLLB multiplier to 4 and divider to 1 */
 	while (!(pmc_sr & (1 << 2))) {} /* wait for PLLB to lock */
 	
 	pmc_mckr = 2; /* switch to PLLA */

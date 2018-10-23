@@ -96,7 +96,7 @@ struct USBEndpointImpl
 	virtual void reset() = 0;
 	virtual void stall() = 0;
 	virtual void unstall() = 0;
-	virtual int send_data(char*, unsigned int, bool) = 0;
+	virtual int send_data(const char*, unsigned int, bool) = 0;
 	virtual char* read_data(unsigned int&) = 0;
 	virtual char* read_setup(unsigned int&) = 0;
 	virtual ~USBEndpointImpl() = default;
@@ -113,12 +113,12 @@ struct USBEndpointImpl
 struct USBEndpoint
 {
 protected:
-	int sendData(char* data, unsigned int length, bool buffered = false);
+	int sendData(const char* data, unsigned int length, bool buffered = false);
 	int sendZLP(bool wait = true);
 	char* receiveData(unsigned int& length);
 	char* receiveSetup(unsigned int& length);
 	
-	int send_data(char* data, unsigned int length, bool buffered) { return (impl->send_data)(data, length, buffered); }
+	int send_data(const char* data, unsigned int length, bool buffered) { return (impl->send_data)(data, length, buffered); }
 	char* read_data(unsigned int& length) { return (impl->read_data)(length); }
 	char* read_setup(unsigned int& length) { return (impl->read_setup)(length); }
 	USBEndpointImpl* impl;

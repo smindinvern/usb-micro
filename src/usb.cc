@@ -44,7 +44,7 @@ enum {
 	SUSPENDED_STATE
 };
 
-int USBEndpoint::sendData(char* data, unsigned int length, bool buffered)
+int USBEndpoint::sendData(const char* data, unsigned int length, bool buffered)
 {
 	volatile struct usb_status_info* usb_status{ getUSBStatusInfo() };
 	// FIXME: buffering does not currently work

@@ -62,7 +62,7 @@ struct AtmelSAMUSBEndpointImpl : public AtmelUSBEndpointImplBase {
     virtual void reset();
     virtual void stall();
     virtual void unstall();
-    virtual int send_data(char*, unsigned int, bool);
+    virtual int send_data(const char*, unsigned int, bool);
     virtual char* read_data(unsigned int&);
     virtual char* read_setup(unsigned int&);
 

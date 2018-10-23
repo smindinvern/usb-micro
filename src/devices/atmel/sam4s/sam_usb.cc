@@ -58,7 +58,7 @@ void AtmelSAMUSBEndpointImpl::unstall()
     sam_usb_clear_ep_stall(ep_number);
 }
 
-int AtmelSAMUSBEndpointImpl::send_data(char* data, unsigned int length, bool buffered)
+int AtmelSAMUSBEndpointImpl::send_data(const char* data, unsigned int length, bool buffered)
 {
     if (type == USBEndpoint::control_ep) {
 	sam_usb_set_ep_in_dir(ep_number);

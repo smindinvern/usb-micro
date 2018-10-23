@@ -72,9 +72,9 @@ void atmel_usb_ep_isr(unsigned int ep)
 	if (sam_usb_out_rxd(ep)) { /* OUT packet received */
 		usb_out_token(ep);
 	}
-	if (sam_usb_tx_completed(ep)) { /* IN packet received */
-		if (ep == 1)
-			usb_in_token(ep);
+	if (sam_usb_tx_completed(ep)) { /* IN transaction completed */
+		usb_in_token(ep);
+		sam_usb_ack_tx_completed(ep);
 	}
 }
 

@@ -8,7 +8,7 @@ env.Append(CPPDEFINES='ATSAM4S')
 env.AppendUnique(CCFLAGS=['-mlittle-endian'])
 env.Append(LINKFLAGS=['-T', File("sam4s-linker.ld")])
 
-files = ['interrupt_table.s', 'interrupt_handlers.cc', 'atmel_init.cc', 'atmel_timer.cc']
+files = ['interrupt_table.s', 'interrupt_handlers.cc', 'atmel_init.cc', 'atmel_timer.cc', 'sam4s_gpio.cc']
 
 Import('features')
 

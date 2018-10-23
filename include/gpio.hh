@@ -1,6 +1,8 @@
 #ifndef _GPIO_HH
 #define _GPIO_HH
 
+#include "macros.hh"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -13,6 +15,7 @@ extern "C" {
 											 bool output);
 	void GPIO_FUNC(_set_pin_value)(unsigned char pin,
 								   bool value);
+	bool GPIO_FUNC(_get_pin_state)(unsigned char pin);
 	void GPIO_FUNC(_tristate_pin)(unsigned char pin);
 	void GPIO_FUNC(_enable_pin_pullup)(unsigned char pin);
 	void GPIO_FUNC(_enable_pin_pulldown)(unsigned char pin);
@@ -24,6 +27,8 @@ extern "C" {
 	GPIO_FUNC(_configure_pin_direction)(pin, output)
 #define set_pin_value(pin, value) \
 	GPIO_FUNC(_set_pin_value)(pin, value)
+#define get_pin_state(pin) \
+	GPIO_FUNC(_get_pin_state)(pin)
 #define tristate_pin(pin) \
 	GPIO_FUNC(_tristate_pin)(pin)
 #define enable_pin_pullup(pin) \

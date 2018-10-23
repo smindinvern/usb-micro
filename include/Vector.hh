@@ -39,6 +39,7 @@ template<class T> class Vector
 	T* array{};
 	unsigned int n_elements{};
 public:
+	const T* c_ptr() { return array; }
 	void push_back(T new_element)
 	{
 		T* new_array{ new(std::nothrow) T[n_elements+1] };

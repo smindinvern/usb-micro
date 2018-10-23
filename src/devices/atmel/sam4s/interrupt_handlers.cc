@@ -104,29 +104,29 @@ extern "C" {
         return;
 	}
 
+	void sam_usb_enter_default_state(const unsigned int);
+	
 	void udp_interrupt(void)
 	{
         volatile unsigned int *udp_isr = (unsigned int *)(UDP_ISR);
         volatile unsigned int *udp_icr = (unsigned int *)(UDP_ICR);
+		volatile unsigned int *udp_imr = (unsigned int *)(UDP_IMR);
 
-        while (*udp_isr) {
-			if (*udp_isr & (1 << 12)) {
+        while (unsigned int active = *udp_isr & *udp_imr) {
+			if (active & (1 << 12)) {
+				volatile struct usb_status_info* usb_status{ getUSBStatusInfo() };
+				sam_usb_enter_default_state(1 << 3);
+				usb_status->device->reset();
 				// usb_enter_default_state();
 				usb_enable();
 				*udp_icr = (1 << 12);
 			}
-			else if (*udp_isr & 0xff) {
-				if (*udp_isr & 1) {
-					usb_ep_isr(0);
-					*udp_icr = 1;
-				}
-				if (*udp_isr & (1 << 1)) {
-					usb_ep_isr(1);
-					*udp_icr = (1 << 1);
-				}
-				if (*udp_isr & (1 << 2)) {
-					usb_ep_isr(2);
-					*udp_icr = (1 << 2);
+			else if (active & 0xff) {
+				for (int i = 0; i < 8; i++) {
+					if (active & (1 << i)) {
+						usb_ep_isr(i);
+						*udp_icr = (1 << i);
+					}
 				}
 			}
 			else {

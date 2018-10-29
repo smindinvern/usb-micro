@@ -63,6 +63,92 @@ namespace std {
 			delete obj;
 		}
 	};
+
+	template<typename T> struct shared_ptr
+	{
+		typedef std::remove_reference_t<T> T_;
+		typedef T_* T_ptr;
+	private:
+		struct shared_ptr_T_inner
+		{
+			T_ptr obj {};
+			size_t ref_count {};
+		} *inner {};
+	public:
+		operator bool()
+		{
+			return bool(inner) && bool(inner->obj);
+		}
+		shared_ptr() = default;
+		shared_ptr& operator=(const shared_ptr& rhs)
+		{
+			this->~shared_ptr();
+			inner = rhs.inner;
+			if (inner) {
+				inner->ref_count++;
+			}
+			return *this;
+		}
+		shared_ptr(const shared_ptr& rhs)
+		{
+			*this = rhs;
+		}
+		shared_ptr& operator=(shared_ptr&& rhs)
+		{
+			this->~shared_ptr();
+			inner = rhs.inner;
+			rhs.inner = nullptr;
+			return *this;
+		}
+		shared_ptr(shared_ptr&& rhs)
+		{
+			*this = std::move(rhs);
+		}
+		// shared_ptr& operator=(T_ptr ptr)
+		// {
+		// 	if (!inner) {
+		// 		inner = new(std::nothrow) shared_ptr_T_inner{ ptr, 1 };
+		// 	}
+		// 	else {
+		// 		delete inner->obj;
+		// 		inner->obj = ptr;
+		// 	}
+		// 	return *this;
+		// }
+		shared_ptr(T_ptr ptr)
+			: inner{ new(std::nothrow) shared_ptr_T_inner{ ptr, 1 } } {}
+		~shared_ptr()
+		{
+			if (inner) {
+				if (--inner->ref_count == 0) {
+					delete inner->obj;
+					delete inner;
+				}
+			}
+		}
+
+		T_ptr get_ptr() { return inner->obj; }
+		T_& operator*()
+		{
+			// NB: This will result in a null-pointer dereference if *this
+			// was created with the default constructor.
+			// This can also result in a null-pointer dereference if *this
+			// was initialized with a null pointer.
+			return *get_ptr();
+		}
+		T_& operator[](size_t i)
+		{
+			// NB: same caveat applies here as for operator*().
+			return get_ptr()[i];
+		}
+	};
+
+	template<typename T>
+	shared_ptr<T> make_shared_ptr(T&& obj)
+	{
+		typename shared_ptr<T>::T_ptr ptr{ new T(std::move(obj)) };
+		return new shared_ptr<T>(ptr);
+	}
 }
 
 #endif

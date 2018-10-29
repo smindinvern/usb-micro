@@ -385,7 +385,7 @@ int USBDevice::out_token_received(unsigned int ep)
 				return 0;
 			}
 			else {
-				int status = process_setup_transaction(inProgressSetupTransaction.bytes,
+				int status = process_setup_transaction(inProgressSetupTransaction.bytes.get_ptr(),
 													   inProgressSetupTransaction.total_bytes);
 				inProgressSetupTransaction = {};
 				return status;

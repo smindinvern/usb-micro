@@ -425,20 +425,20 @@ public:
 			std::exclusive_ptr<USBOutEndpoint>&& bulk_out_ep,
 			std::exclusive_ptr<USBInEndpoint>&& bulk_in_ep);
 
-	void addDevDepMsgOutHandler(out_msg_handler handler)
+	void addDevDepMsgOutHandler(out_msg_handler& handler)
 	{
-		dev_dep_msg_out_handler = std::move(handler);
+		dev_dep_msg_out_handler = &handler;
 	}
-	void addDevDepMsgInReqHandler(in_msg_handler handler)
+	void addDevDepMsgInReqHandler(in_msg_handler& handler)
 	{
-		dev_dep_msg_in_req_handler = std::move(handler);
+		dev_dep_msg_in_req_handler = &handler;
 	}
 
 	// publicly visible records for e.g. USBTMCDevice to manage some things for us
 	unsigned char bulkIn_bTag{};
 private:
-	out_msg_handler dev_dep_msg_out_handler;
-	in_msg_handler dev_dep_msg_in_req_handler;
+	out_msg_handler* dev_dep_msg_out_handler;
+	in_msg_handler* dev_dep_msg_in_req_handler;
 };
 
 class USBTMCDevice : public USBDevice
@@ -566,7 +566,7 @@ USBTMCDevice create_usbtmc_device(const wchar_t* manufacturer_name,
 								  const USBDeviceFactory& cstr,
 								  const Invokable<std::exclusive_ptr<USBOutEndpoint>()>& get_out_ep,
 								  const Invokable<std::exclusive_ptr<USBInEndpoint>()>& get_in_ep,
-								  USBTMCInterface::out_msg_handler&& out_handler,
-								  USBTMCInterface::in_msg_handler&& in_handler);
+								  USBTMCInterface::out_msg_handler& out_handler,
+								  USBTMCInterface::in_msg_handler& in_handler);
 
 #endif  // USBTMC_HH_

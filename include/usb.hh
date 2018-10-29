@@ -84,6 +84,7 @@ struct usb_status_info {
 #include "mm.hh"
 #include "Vector.hh"
 #include "Invokable.hh"
+#include "Pointers.hh"
 
 /**
  * struct USBEndpointImpl
@@ -397,7 +398,7 @@ struct InProgressTransfer
 {
 	size_t total_bytes{};
 	size_t bytes_so_far{};
-	char* bytes{};
+	std::shared_ptr<char> bytes{};
 	InProgressTransfer() = default;
 	InProgressTransfer(size_t total)
 		: total_bytes{ total },
@@ -406,7 +407,8 @@ struct InProgressTransfer
 	{
 		size_t remaining_bytes{ total_bytes - bytes_so_far };
 		size_t copy_size{ remaining_bytes < size ? remaining_bytes : size };
-		memcpy(bytes + bytes_so_far, new_bytes, copy_size);
+		char* ptr{ bytes.get_ptr() };
+		memcpy(ptr + bytes_so_far, new_bytes, copy_size);
 		bytes_so_far += copy_size;
 	}
 	operator bool()
@@ -415,10 +417,21 @@ struct InProgressTransfer
 		bool completed{ bytes_so_far == total_bytes };
 		return started && !completed;
 	}
-	~InProgressTransfer()
+	InProgressTransfer(InProgressTransfer&& rhs)
 	{
-		delete[] bytes;
+		*this = std::move(rhs);
 	}
+	InProgressTransfer(const InProgressTransfer&) = delete;
+	InProgressTransfer& operator=(InProgressTransfer&& rhs)
+	{
+		total_bytes = rhs.total_bytes;
+		bytes_so_far = rhs.bytes_so_far;
+		bytes = rhs.bytes;
+		rhs.total_bytes = rhs.bytes_so_far = 0;
+		rhs.bytes = {};
+		return *this;
+	}
+	~InProgressTransfer() = default;
 };
 
 /**

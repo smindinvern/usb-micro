@@ -151,8 +151,8 @@ int USBTMCInterface::handle_current_message()
 		return -1;
 	}
 
-	int status = (this->*handler)(out_state.current_message.bytes, out_state.current_message.total_bytes);
-	delete[] out_state.current_message.bytes;
+	int status = (this->*handler)(out_state.current_message.bytes.get_ptr(),
+								  out_state.current_message.total_bytes);
 	out_state.current_message = {};
 	out_state.current_state = USBTMCBulkOutState::IDLE;
 	return status;
@@ -168,18 +168,18 @@ int USBTMCInterface::handle_current_message()
 bool USBTMCInterface::append_transfer_to_message(InProgressTransfer& t, InProgressTransfer& m)
 {
 	if (!m.bytes) {
-		m = t;
+		m = std::move(t);
 	}
 	else {
 		// reallocate message buffer to accomodate new data
-		char* temp = static_cast<char*>(realloc(m.bytes, m.total_bytes + t.total_bytes));
+		char* temp = static_cast<char*>(realloc(m.bytes.get_ptr(), m.total_bytes + t.total_bytes));
 		if (!temp) {
 			return false;
 		}
 		m.bytes = temp;
+		m.total_bytes += t.total_bytes;
 		// join previously received message data with latest transfer data
-		memcpy(m.bytes + m.total_bytes, t.bytes, t.total_bytes);
-		m.total_bytes = (m.bytes_so_far += t.total_bytes);
+		m.append(t.bytes.get_ptr(), t.total_bytes);
 	}
 	// clear contents of transfer
 	t = {};
@@ -228,14 +228,13 @@ int USBTMCInterface::out_token_handler(char* packet_data, unsigned int bytes)
 			while (1);
 		}
 		// TODO: do some kind of check on transfer size...
-		out_state.current_transfer.bytes = new(std::nothrow) char[total_bytes];
+		out_state.current_transfer = InProgressTransfer{ total_bytes };
 		if (!out_state.current_transfer.bytes) {
 			return -1;
 		}
 		// copy over already-received bytes
-		memcpy(out_state.current_transfer.bytes, packet_data, total_bytes);
+		out_state.current_transfer.append(packet_data, bytes);
 		// record our progress so far
-		out_state.current_transfer.bytes_so_far = (bytes < total_bytes) ? bytes : total_bytes;
 		out_state.current_state = (bytes < total_bytes) ?
 			USBTMCBulkOutState::RXING_BULK_OUT_TRANSFER : USBTMCBulkOutState::TRANSFER_COMPLETED;
 	}
@@ -256,12 +255,9 @@ int USBTMCInterface::out_token_handler(char* packet_data, unsigned int bytes)
 		// if this transaction doesn't fill the buffer, copy the entire
 		// received data.  otherwise, don't overfill the buffer by
 		// copying any padding bytes
-		unsigned int n = (bytes < delta) ? bytes : delta;
-		memcpy(&out_state.current_transfer.bytes[out_state.current_transfer.bytes_so_far],
-		       packet_data, n);
+		out_state.current_transfer.append(packet_data, bytes);
 
 		// take account of newly received bytes
-		out_state.current_transfer.bytes_so_far += n;
 		out_state.current_state = (out_state.current_transfer.bytes_so_far == out_state.current_transfer.total_bytes) ? USBTMCBulkOutState::TRANSFER_COMPLETED : USBTMCBulkOutState::RXING_BULK_OUT_TRANSFER;
 	}
 	
@@ -270,8 +266,8 @@ int USBTMCInterface::out_token_handler(char* packet_data, unsigned int bytes)
 	if (out_state.current_state == USBTMCBulkOutState::TRANSFER_COMPLETED) {
 		// move contents of completed transfer to message buffer
 		if (!append_transfer_to_message(out_state.current_transfer, out_state.current_message)) {
-			delete[] out_state.current_message.bytes;
-			out_state.current_message = out_state.current_transfer = {};
+			out_state.current_message = {};
+			out_state.current_transfer = {};
 			return false;
 		}
 
@@ -301,8 +297,13 @@ int USBTMCInterface::handle_dev_dep_msg_out(char* packet_data, unsigned int byte
 	unsigned char& bTag{ hdr.template get<1>() };
 	unsigned int& transferSize{ msg.template get<1>() };
 	char* msg_start = &packet_data[USBTMCDevDepMsgOut::size()];
-	
-	return dev_dep_msg_out_handler(MsgID, bTag, transferSize, msg_start);
+
+	if (dev_dep_msg_out_handler) {
+		return (*dev_dep_msg_out_handler)(MsgID, bTag, transferSize, msg_start);
+	}
+	else {
+		return -1;
+	}
 }
 
 int USBTMCInterface::handle_dev_dep_msg_in(char* packet_data, unsigned int bytes)
@@ -326,9 +327,14 @@ int USBTMCInterface::handle_dev_dep_msg_in(char* packet_data, unsigned int bytes
 	// record bTag for this request in case of a future INITIATE_ABORT_BULK_IN
 	bulk_in->last_bTag = bTag;
 	
-	return dev_dep_msg_in_req_handler(*bulk_in, MsgID, bTag, transferSize,
-					  bmTransferAttributes | 0x02,
-					  termChar);
+	if (dev_dep_msg_in_req_handler) {
+		return (*dev_dep_msg_in_req_handler)(*bulk_in, MsgID, bTag, transferSize,
+											 bmTransferAttributes | 0x02,
+											 termChar);
+	}
+	else {
+		return -1;
+	}
 }
 
 int USBTMCInterface::handle_vendor_specific_out(char* packet_data, unsigned int bytes)
@@ -470,8 +476,8 @@ USBTMCDevice create_usbtmc_device(const wchar_t* manufacturer_name,
 								  const USBDeviceFactory& cstr,
 								  const Invokable<std::exclusive_ptr<USBOutEndpoint>()>& get_out_ep,
 								  const Invokable<std::exclusive_ptr<USBInEndpoint>()>& get_in_ep,
-								  USBTMCInterface::out_msg_handler&& out_handler,
-								  USBTMCInterface::in_msg_handler&& in_handler)
+								  USBTMCInterface::out_msg_handler& out_handler,
+								  USBTMCInterface::in_msg_handler& in_handler)
 {
 	USBConfigurationFactory configFactory =
 		[&](unsigned char n) -> USBConfiguration*
@@ -498,8 +504,8 @@ USBTMCDevice create_usbtmc_device(const wchar_t* manufacturer_name,
 				return nullptr;
 			}
 
-			iface->addDevDepMsgOutHandler(std::move(out_handler));
-			iface->addDevDepMsgInReqHandler(std::move(in_handler));
+			iface->addDevDepMsgOutHandler(out_handler);
+			iface->addDevDepMsgInReqHandler(in_handler);
 
 			new_config->interfaces.push_back(iface);
 			return new_config;

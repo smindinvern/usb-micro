@@ -33,6 +33,9 @@ if "usbtmc" in features:
 if "usbtmc488" in features:
     files.append('usbtmc488.cc')
     env.Append(CPPDEFINES='USING_USBTMC488')
+if "usbhid" in features:
+    files.append('usbhid.cc')
+    env.Append(CPPDEFINES='USING_USBHID')
 if "i2c" in features:
     env.Append(CPPDEFINES='USING_I2C')
 objs = [env.Object(x) for x in files]

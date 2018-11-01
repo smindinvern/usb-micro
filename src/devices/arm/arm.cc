@@ -39,6 +39,14 @@ void enable_interrupt(unsigned int interrupt)
 	nvic_iser |= (1 << interrupt);
 }
 
+void disable_interrupt(unsigned int interrupt)
+{
+	Reg32 nvic_icer{ ARM_NVIC_ICER(interrupt / 32) };
+
+	interrupt %= 32;
+	nvic_icer |= (1 << interrupt);
+}
+
 void set_interrupt_priority(unsigned int interrupt,
 							unsigned char priority)
 {

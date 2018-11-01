@@ -298,6 +298,9 @@ int USBTMCInterface::handle_dev_dep_msg_out(char* packet_data, unsigned int byte
 	unsigned int& transferSize{ msg.template get<1>() };
 	char* msg_start = &packet_data[USBTMCDevDepMsgOut::size()];
 
+	if (USBTMCDevDepMsgOut::size() + transferSize != bytes) {
+		return -1;
+	}
 	if (dev_dep_msg_out_handler) {
 		return (*dev_dep_msg_out_handler)(MsgID, bTag, transferSize, msg_start);
 	}

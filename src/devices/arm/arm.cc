@@ -33,16 +33,24 @@
 
 void enable_interrupt(unsigned int interrupt)
 {
-	Reg32 nvic_iser{ ARM_NVIC_ISER(interrupt) };
+	Reg32 nvic_iser{ ARM_NVIC_ISER(interrupt / 32) };
 
 	interrupt %= 32;
 	nvic_iser |= (1 << interrupt);
 }
 
+void disable_interrupt(unsigned int interrupt)
+{
+	Reg32 nvic_icer{ ARM_NVIC_ICER(interrupt / 32) };
+
+	interrupt %= 32;
+	nvic_icer |= (1 << interrupt);
+}
+
 void set_interrupt_priority(unsigned int interrupt,
 							unsigned char priority)
 {
-	Reg32 nvic_ipr{ ARM_NVIC_IPR((int)(interrupt / 4)) };
+	Reg32 nvic_ipr{ ARM_NVIC_IPR(interrupt / 4) };
 	interrupt %= 4;
 	nvic_ipr = (nvic_ipr & ~(0b11 << (8*interrupt + 6))) | ((priority & 0b11) << (8*interrupt + 6));
 }

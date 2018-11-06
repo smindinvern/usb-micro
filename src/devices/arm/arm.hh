@@ -89,10 +89,10 @@ extern "C" {
 #define ARM_SYST_CALIB     (ARM_SYSTICK_BASE + 0x0CUL)
 
 // NVIC registers
-#define ARM_NVIC_ISER(n)   (ARM_NVIC_BASE + 0x0000UL + (4UL * ((unsigned int)(n / 32))))
-#define ARM_NVIC_ICER(n)   (ARM_NVIC_BASE + 0x0080UL + (4UL * ((unsigned int)(n / 32))))
-#define ARM_NVIC_ISPR(n)   (ARM_NVIC_BASE + 0x0100UL + (4UL * ((unsigned int)(n / 32))))
-#define ARM_NVIC_ICPR(n)   (ARM_NVIC_BASE + 0x0180UL + (4UL * ((unsigned int)(n / 32))))
-#define ARM_NVIC_IPR(n)    (ARM_NVIC_BASE + 0x0300UL + (4UL * ((unsigned int)(n / 4))))
+#define ARM_NVIC_ISER(n)   (ARM_NVIC_BASE + 0x0000UL + (4UL * (unsigned int)(n)))
+#define ARM_NVIC_ICER(n)   (ARM_NVIC_BASE + 0x0080UL + (4UL * (unsigned int)(n)))
+#define ARM_NVIC_ISPR(n)   (ARM_NVIC_BASE + 0x0100UL + (4UL * (unsigned int)(n)))
+#define ARM_NVIC_ICPR(n)   (ARM_NVIC_BASE + 0x0180UL + (4UL * (unsigned int)(n)))
+#define ARM_NVIC_IPR(n)    (ARM_NVIC_BASE + 0x0300UL + (4UL * (unsigned int)(n)))
 
 #endif

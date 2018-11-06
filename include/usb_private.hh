@@ -320,7 +320,7 @@ struct USBEndpointDescriptor : public USBRawEndpointDescriptor
 };
 
 #define usb_func(x) \
-	atmel_usb_##x
+	samd_usb_##x
 
 #define __usb_set_address usb_func(set_address)
 #define __usb_set_configured usb_func(set_configured)

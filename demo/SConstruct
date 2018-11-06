@@ -7,7 +7,7 @@ env.Append(CPPDEFINES=[('STACK_SIZE', '0x1000')])
 features=['usb', 'usbhid']
 Export('features')
 Export('env')
-objs = env.SConscript('../src/devices/atmel/sam4s/atsam4s16c.SConscript')
+objs = env.SConscript('../src/devices/atmel/samd/atsamd21j18a.SConscript')
 objs += env.SConscript('../src/SConscript')
 objs += [env.Object('lookup_tables.c'), env.Object('main.cc')]
 env.Program('kb_controller.elf', objs)

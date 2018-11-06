@@ -214,6 +214,7 @@ public:
 		desc->bank1.addr = reinterpret_cast<const unsigned int>(buf);
 		set_tx_size(size);
 		// Set EPSTATUS.BK1RDY to indicate data is ready to send
+		do_dmb();
 		Reg8 epstatusset{ USB_EPSTATUSSET(ep_num) };
 		epstatusset = 1 << 7;
 		// Wait for TRCPT1 interrupt flag to be set

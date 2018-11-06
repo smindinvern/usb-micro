@@ -211,6 +211,12 @@ public:
 	virtual int send_data(const char* buf, unsigned int size, bool wait)
 	{
 		unsigned int addr = desc->bank1.addr;
+		if (buf < (void*)0x20000000) {
+			memcpy(reinterpret_cast<void*>(desc->bank1.addr), buf, size);
+		}
+        else {
+			desc->bank1.addr = reinterpret_cast<const unsigned int>(buf);
+		}
 		desc->bank1.addr = reinterpret_cast<const unsigned int>(buf);
 		set_tx_size(size);
 		// Set EPSTATUS.BK1RDY to indicate data is ready to send

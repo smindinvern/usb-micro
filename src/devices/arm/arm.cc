@@ -34,7 +34,7 @@
 extern "C" {
 	void enable_interrupt(unsigned int interrupt)
 	{
-		Reg32 nvic_iser{ ARM_NVIC_ISER(interrupt) };
+		Reg32 nvic_iser{ ARM_NVIC_ISER(interrupt / 32) };
 
 		interrupt %= 32;
 		nvic_iser |= (1 << interrupt);
@@ -42,7 +42,7 @@ extern "C" {
 
     void disable_interrupt(unsigned int interrupt)
     {
-    	Reg32 nvic_icer{ ARM_NVIC_ICER(interrupt) };
+    	Reg32 nvic_icer{ ARM_NVIC_ICER(interrupt / 32) };
     
     	interrupt %= 32;
     	nvic_icer |= (1 << interrupt);

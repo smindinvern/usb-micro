@@ -88,6 +88,7 @@ void configure_dfll48m(unsigned short multiplier)
 	// DFLLCTRL.MODE = 1; enter closed-loop mode.
 	dfllctrl |= (1U << 2U);
 	// Wait for DFLL48M to lock.
+	Reg32 pclksr{ SYSCTRL_PCLKSR };
 	while (!(pclksr & (1U << 4U)));
 }
 

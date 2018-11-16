@@ -29,6 +29,7 @@
  */
 
 #include "main.hh"
+#include "atsamd21.hh"
 #include "samd_usb.hh"
 
 #ifdef USING_I2C
@@ -124,9 +125,11 @@ extern "C" {
 			return;
 		}
 		Reg16 epintsmry{ USB_EPINTSMRY };
-		while (epintsmry) {
-			for (int i = 0; i < 16; i++) {
-				if ((epintsmry & (1 << i)) != 0) {
+		for (int i = 0; i < 16; i++) {
+			if ((epintsmry & (1 << i)) != 0) {
+				Reg8 epintflag{ USB_EPINTFLAG(i) };
+				Reg8 epinten{ USB_EPINTENCLR(i) };
+				if (epintflag & epinten) {
 					usb_ep_isr(i);
 				}
 			}

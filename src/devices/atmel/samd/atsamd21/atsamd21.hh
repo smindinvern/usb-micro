@@ -424,12 +424,13 @@ inline void setup_gclkgen(const unsigned char gclkgen_id,
 	while ((status & (1 << 7)) != 0);
 	// Write GENCTRL to enable generator
 	Reg32 genctrl{ GCLK_GENCTRL };
-	// GENCTRL.IDC = 1
+	// GENCTRL.IDC = (div > 1 && (div % 2)!=0)
+	// GENCTRL.DIVSEL = 0
 	// GENCTRL.GENEN = 1
 	// GENCTRL.SRC = source_clock_id
 	// GENCTRL.ID = gclkgen_id
-	bool idc = (div > 1 && (div % 2) != 0);
-	genctrl = (1 << 21) | (1 << 19) | (idc << 17) | (1 << 16) | (source_clock_id << 8) | gclkgen_id;
+	bool idc = (div > 1 && (div % 2)!=0);
+	genctrl = (1 << 21) | (oe << 19) | (idc << 17) | (1 << 16) | (source_clock_id << 8) | gclkgen_id;
 	// Wait for synchronization to complete
 	// while ((status & (1 << 7)) != 0);
 }

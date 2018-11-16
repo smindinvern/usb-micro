@@ -34,6 +34,63 @@
 #include "usb.hh"
 #include "mm.hh"
 
+void setup_xosc32k()
+{
+	Reg16 xosc32k{ SYSCTRL_XOSC32K };
+	// Clear the enable bit first before we do any configuration.
+	// XOSC32K.ENABLE = 0
+	xosc32k = 0;
+	// XOSC32K.STARTUP = 0x3; ~1s startup time
+	const unsigned short startup{ 0x5U << 8U };
+	// XOSC32K.ONDEMAND = 0; run the oscillator in all sleep modes.
+	const unsigned short ondemand{ 0U };
+	// XOSC32K.RUNSTDBY = 1; run the oscillator in standby mode.
+	const unsigned short runstdby{ 1U << 6U };
+	// Silicon errata: automatic amplitude control doesn't work
+	// XOSC32K.AAMPEN = 0; disable automatic amplitude control.
+	const unsigned short aampen{ 0U };
+	// XOSC32K.EN32K = 1; enable 32kHz output.
+	const unsigned short en32k{ 1U << 3U };
+	// XOSC32K.XTALEN = 1; crystal connected to XIN32/XOUT32.
+	const unsigned short xtalen{ 1U << 2U };
+	xosc32k = startup | ondemand | runstdby | aampen | en32k | xtalen;
+	// XOSC32K.ENABLE = 1; enable oscillator.
+	xosc32k |= 1U << 1U;
+	// Wait for oscillator to stabilize.
+	Reg32 pclksr{ SYSCTRL_PCLKSR };
+	while (!(pclksr & (1U << 1U)));
+}
+
+void configure_dfll48m(unsigned short multiplier)
+{
+	// First disable DFLL48M.
+	Reg16 dfllctrl{ SYSCTRL_DFLLCTRL };
+	dfllctrl = 0;
+	// DFLL must be enabled before configuring.  Due to silicon errata, ensure
+	// that DFLLCTRL.ONDEMAND is cleared.
+	dfllctrl = (1U << 1U);
+	// DFLLCTRL.WAITLOCK = 1
+	// DFLLCTRL.QLDIS = 1
+	// DFLLCTRL.ONDEMAND = 0
+	// DFLLCTRL.RUNSTDBY = 1
+	dfllctrl |= (1U << 11U) | (1U << 9U) | (1U << 6U);
+	// Set DFLLVAL.COURSE to value from OTP *before* entering closed-loop mode.
+	Reg32 dfllval{ SYSCTRL_DFLLVAL };
+	// DFLLVAL.COURSE from NVMOTP
+	const unsigned char* otp = (const unsigned char* )NVM_OTP;
+	// DFLL48M COURSE CAL = bits 63:58
+	dfllval = ((otp[7] & 0xFC) >> 2) << 10;
+	Reg32 dfllmul{ SYSCTRL_DFLLMUL };
+	// DFLLMUL.CSTEP = 1
+	// DFLLMUL.FSTEP = 1
+	// DFLLMUL.MUL = multiplier
+	dfllmul = (1U << 26U) | (1U << 16U) | multiplier;
+	// DFLLCTRL.MODE = 1; enter closed-loop mode.
+	dfllctrl |= (1U << 2U);
+	// Wait for DFLL48M to lock.
+	while (!(pclksr & (1U << 4U)));
+}
+
 void setup_clocks()
 {
 	/**

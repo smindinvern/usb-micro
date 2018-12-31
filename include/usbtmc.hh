@@ -150,7 +150,7 @@ struct USBTMCVendorSpecificOut : public USBTMCVendorSpecific
 	USBTMCVendorSpecificOut(unsigned char bTag,
 				unsigned int transferSize)
 		: USBTMCVendorSpecific{ VENDOR_SPECIFIC_OUT, bTag, transferSize } {}
-	using DeSerializable::DeSerializable;
+	using USBTMCVendorSpecific::USBTMCVendorSpecific;
 };
 
 
@@ -201,7 +201,7 @@ struct USBTMCVendorSpecificIn : public USBTMCVendorSpecific
 	USBTMCVendorSpecificIn(unsigned char bTag,
 			       unsigned int transferSize)
 		: USBTMCVendorSpecific{ VENDOR_SPECIFIC_IN, bTag, transferSize } {}
-	using DeSerializable::DeSerializable;
+	using USBTMCVendorSpecific::USBTMCVendorSpecific;
 };
 
 /* USBTMC CONTROL endpoint requests */

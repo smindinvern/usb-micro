@@ -81,6 +81,65 @@ char* USBEndpoint::receiveSetup(unsigned int& length)
 	return read_setup(length);
 }
 
+int USBEndpoint::endpointRequest(USBControlEndpoint* ep0, char* request)
+{
+	USBStandardDeviceRequest req{ request };
+	// Examine bmRequestType to determine if this is a standard, class,
+	// or vendor request.
+	switch ((req.bmRequestType() & 0x60) >> 5) {
+	case 0:  // Standard
+		// Only 3 standard requests are allowed for endpoints:
+		// * CLEAR_FEATURE (1)
+		// * GET_STATUS    (0)
+		// * SET_FEATURE   (3)
+		// Examine bRequest to determine type of request.
+		switch (req.bRequest()) {
+		case 0:  // GET_STATUS
+		{
+			// For an endpoint, the GET_STATUS response reports
+			// a single status bit:
+			// D15..D1: Reserved
+			// D0: Halt
+			char response[2] = { 0, stalled ? 1 : 0 };
+			sendData(response, 2, false);
+			return true;
+		}
+		case 1:  // CLEAR_FEATURE
+		case 3:  // SET_FEATURE
+			// For an endpoint, the only feature that can be set
+			// or cleared is ENDPOINT_HALT (0).
+			if (req.wValue() != 0) {
+				return -1;
+			}
+			if (req.bRequest() == 3) {
+				stall();
+			}
+			else {
+				unstall();
+			}
+			sendZLP();
+			return true;
+		default:
+			return -1;
+		}
+	case 1:  // Class
+		for (int i = 0; i < classRequestHandlers.size(); i++) {
+			int status{ classRequestHandlers[i](ep0, request) };
+			if (status != false) {
+				return status;
+			}
+		}
+		return false;
+	case 2:  // Vendor
+	case 3:  // Reserved
+	default:
+		return -1;
+	}
+}
+
+
+
+
 USBDevice::USBDevice(USBControlEndpoint ep0_, USBDeviceDescriptor descriptor,
 					 Invokable<USBConfiguration*(unsigned char)> configurationFactory,
 					 USBDeviceImpl* privImpl)
@@ -320,6 +379,7 @@ int USBDevice::DefaultSetupRequestHandler::usb_set_configuration(USBDevice& devi
 			return -1;
 		}
 		delete device.current_config;
+		device.ep0.reset();
 		device.current_config = device.configFactory(wValue);
 		if (!device.current_config) {
 			return -1;
@@ -480,11 +540,24 @@ int USBDevice::process_setup_transaction(char* buffer, unsigned int size)
 		// Guaranteed to exist by checks in setup_token_received().
 		USBInterface* iface{ getInterface(wIndex) };
 		int status{ iface->interfaceRequest(&ep0, buffer) };
+		if (status < 0) {
+			ep0.stall();
+		}
 		return status;
 	}
 	case 2:  // Endpoint
-		// Endpoint handlers not implemented yet.  Fall back to device handlers.
-		break;
+	{
+		USBEndpoint* ep{ getEndpoint(req.wIndex()) };
+		if (!ep) {
+			ep0.stall();
+			return -1;
+		}
+		int status{ ep->endpointRequest(&ep0, buffer) };
+		if (status < 0) {
+			ep0.stall();
+		}
+		return status;
+	}
 	default:
 		break;
 	}
@@ -571,8 +644,11 @@ int USBDevice::setup_token_received(char* buffer, unsigned int size)
 		return 0;
 	}
 	case 2:  // Endpoint
-		// Endpoint handlers not implemented yet.  Fall back to device handlers.
-		break;
+		if (!getEndpoint(req.wIndex())) {
+			ep0.stall();
+			return -1;
+		}
+		return 0;
 	default:
 		break;
 	}

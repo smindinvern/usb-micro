@@ -103,6 +103,19 @@ struct USBEndpointImpl
 	virtual ~USBEndpointImpl() = default;
 };
 
+struct USBControlEndpoint;
+
+/**
+ * USBClassRequestHandler
+ *
+ * Used for user-defined callbacks for handling and responding to
+ * incoming USB class requests.  The handler is expected to send a
+ * response to the host if appropriate, and to return true if the
+ * request was handled by the callback, false if it was not handled
+ * by the callback, and a negative error code if there was an error.
+ */
+typedef Invokable<int(USBControlEndpoint*, char*)> USBClassRequestHandler;
+
 
 /**
  * struct USBEndpoint
@@ -123,6 +136,7 @@ protected:
 	char* read_data(unsigned int& length) { return (impl->read_data)(length); }
 	char* read_setup(unsigned int& length) { return (impl->read_setup)(length); }
 	USBEndpointImpl* impl;
+	Vector<USBClassRequestHandler> classRequestHandlers;
 public:
 	enum ep_type {
 		control_ep,
@@ -165,6 +179,12 @@ public:
 	{
 		rhs.impl = nullptr;
 	}
+	void addClassRequestHandler(USBClassRequestHandler handler)
+	{
+		classRequestHandlers.push_back(std::move(handler));
+	}
+
+	int endpointRequest(USBControlEndpoint* ep0, char* request);
 };
 
 /**
@@ -250,18 +270,6 @@ struct USBSetupRequestHandler
 	virtual int usb_set_interface(USBDevice& device, char* buf) = 0;
 	virtual ~USBSetupRequestHandler() = default;
 };
-
-
-/**
- * USBClassRequestHandler
- *
- * Used for user-defined callbacks for handling and responding to
- * incoming USB class requests.  The handler is expected to send a
- * response to the host if appropriate, and to return true if the
- * request was handled by the callback, false if it was not handled
- * by the callback, and a negative error code if there was an error.
- */
-typedef Invokable<int(USBControlEndpoint*, char*)> USBClassRequestHandler;
 
 
 /**

@@ -486,6 +486,31 @@ public:
 	virtual int usb_clear_feature(USBDevice&, char*) { return 0; }
 	virtual int usb_set_feature(USBDevice&, char*) { return 0; }
 	virtual int usb_set_address(USBDevice&, char*) { return 0; }
+	int send_string_descriptor(USBDevice& device, const wchar_t* string_,
+				   size_t string_length, size_t tx_length)
+	{
+		const char STRING = 3;
+		// STRING desciptors contain a 2-byte header.
+		if (tx_length < 2) {
+			return -1;
+		}
+		else if (string_length > 253) {
+			// descriptor strings can't be longer than 253 bytes.
+			return -1;
+		}
+		tx_length -= 2;
+		// Truncate descriptor if needed to fit in requested transmission length.
+		size_t payload_length{ (string_length < tx_length) ? string_length : tx_length };
+		char* bytes = new(std::nothrow) char[payload_length + 2];
+
+		bytes[0] = string_length + 2; // Total descriptor length.
+		bytes[1] = STRING;
+		memcpy(&bytes[2], string_, payload_length);
+		int status = device.ep0.sendData(bytes, payload_length + 2);
+		delete[] bytes;
+		return status;
+		
+	}
 	virtual int usb_get_descriptor(USBDevice& device, char* buf)
 	{
 		const char STRING = 3;
@@ -503,42 +528,25 @@ public:
 		}
 
 		unsigned int length = (buf[7] * 0x100) + buf[6];
-
-		char *bytes = new(std::nothrow) char[length];
-		// Assume (length >= 2)
-		bytes[1] = STRING;
 		switch (buf[2] & 0xff) {
 		case 0:
 			device.ep0.sendData(descriptor0, 4);
 			break;
 		case 4:
-			bytes[0] = 2 + manufacturer_name_size;
-			if (bytes[0] < length) {
-				length = bytes[0];
-			}
-			memcpy(&bytes[2], manufacturer_name_, length - 2);
-			device.ep0.sendData(bytes, length);
+			send_string_descriptor(device, manufacturer_name_,
+					       manufacturer_name_size, length);
 			break;
 		case 2:
-			bytes[0] = 2 + product_name_size;
-			if (bytes[0] < length) {
-				length = bytes[0];
-			}
-			memcpy(&bytes[2], product_name_, length - 2);
-			device.ep0.sendData(bytes, length);
+			send_string_descriptor(device, product_name_,
+					       product_name_size, length);
 			break;
 		case 3:
-			bytes[0] = 2 + serial_number_size;
-			if (bytes[0] < length) {
-				length = bytes[0];
-			}
-			memcpy(&bytes[2], serial_number_, length - 2);
-			device.ep0.sendData(bytes, length);
+			send_string_descriptor(device, serial_number_,
+					       serial_number_size, length);
 			break;
 		default:
 			break;
 		}
-		delete bytes;
 		return true;
 	}
 	virtual int usb_set_descriptor(USBDevice&, char*) { return 0; }

@@ -379,7 +379,6 @@ int USBDevice::DefaultSetupRequestHandler::usb_set_configuration(USBDevice& devi
 			return -1;
 		}
 		delete device.current_config;
-		device.ep0.reset();
 		device.current_config = device.configFactory(wValue);
 		if (!device.current_config) {
 			return -1;

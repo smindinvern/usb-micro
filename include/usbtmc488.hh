@@ -120,11 +120,4 @@ class USB488ReadStatusByteResponse : public Serializable<unsigned char, /* statu
 		: Serializable{ usbtmc_status, bTag, status_byte } {}
 };
 
-USBTMCDevice create_usbtmc488_device(const wchar_t* manufacturer_name,
-									 const wchar_t* product_name,
-									 const wchar_t* serial_number,
-									 Invokable<USBDevice(Invokable<USBConfiguration*(unsigned char)>&&)>& cstr,
-									 Invokable<std::exclusive_ptr<USBOutEndpoint>()>& get_out_ep,
-									 Invokable<std::exclusive_ptr<USBInEndpoint>()>& get_in_ep);
-
 #endif // USBTMC_488_HH_

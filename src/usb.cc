@@ -101,7 +101,7 @@ int USBEndpoint::endpointRequest(USBControlEndpoint* ep0, char* request)
 			// D15..D1: Reserved
 			// D0: Halt
 			char response[2] = { 0, stalled ? 1 : 0 };
-			sendData(response, 2, false);
+			ep0->sendData(response, 2, false);
 			return true;
 		}
 		case 1:  // CLEAR_FEATURE
@@ -117,7 +117,7 @@ int USBEndpoint::endpointRequest(USBControlEndpoint* ep0, char* request)
 			else {
 				unstall();
 			}
-			sendZLP();
+			ep0->sendZLP();
 			return true;
 		default:
 			return -1;

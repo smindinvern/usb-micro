@@ -32,6 +32,21 @@
 #include "usbtmc.hh"
 #include "usbtmc488.hh"
 
+int usbtmc_endpoint_request_handler(USBControlEndpoint* ep0, char* bytes)
+{
+	USBStandardDeviceRequest req{ bytes };
+	const unsigned int& bRequest{ req.bRequest() };
+	switch (bRequest) {
+	case INITIATE_ABORT_BULK_IN:
+		// this covers the case where a command message was rejected by the command parser.
+		// in this case, a response message will not be sent, so we just need to respond to
+		// the host here to confirm.
+		char response_bytes[2] = { STATUS_FAILED, req.wValue() };
+		ep0->sendData(response_bytes, sizeof(response_bytes));
+		break;
+	}
+}
+
 /**
  * USBTMCInterface implementation
  *
@@ -55,6 +70,7 @@ USBTMCInterface::USBTMCInterface(USBTMC_bInterfaceProtocol bInterfaceProtocol,
 {
 	bulk_out = bulk_out_ep.clear_ptr();
 	bulk_in = new(std::nothrow) USBTMCInEndpoint(std::move(*bulk_in_ep.clear_ptr()));
+	bulk_in->addClassRequestHandler(usbtmc_endpoint_request_handler);
 	USBInterface::addOutEndpoint(bulk_out, {
 			[&](char* d, unsigned int n) {
 				return out_token_handler(d, n);
@@ -356,55 +372,6 @@ int USBTMCInterface::in_token_handler()
 	return false;
 }
 
-int USBTMCDevice::usbtmc_class_request_handler(USBControlEndpoint* ep0, char* bytes)
-{
-	if (!ep0 || !bytes) {
-		return -1;
-	}
-	USBStandardDeviceRequest req{ bytes };
-	const unsigned int& bRequest{ req.bRequest() };
-	const unsigned int& bmRequestType{ req.bmRequestType() };
-	const unsigned int recipient = bmRequestType & 0x0f;
-	switch (recipient) {
-	case 0x00:  // Device
-		return false;
-	case 0x01:  // Interface
-	{
-		// interface number
-		const unsigned int& wIndex{ req.wIndex() };
-		if (wIndex >= current_config->interfaces.size()) {
-			return -1;
-		}
-		USBInterface* iface = current_config->interfaces[wIndex];
-		for (unsigned int i = 0; i < iface->classRequestHandlers.size(); i++) {
-			int status = iface->classRequestHandlers[i](ep0, bytes);
-			if (status < 0) {
-				return status;
-			}
-			else if (status > 0) {
-				return true;
-			}
-		}
-		return false;
-	}
-	case 0x02:  // Endpoint
-		switch (bRequest) {
-		case INITIATE_ABORT_BULK_IN:
-			// this covers the case where a command message was rejected by the command parser.
-			// in this case, a response message will not be sent, so we just need to respond to
-			// the host here to confirm.
-			USBTMCInEndpoint* ep = static_cast<USBTMCInEndpoint*>(getEndpoint(req.wIndex()));
-			if (!ep) {
-				return false;
-			}
-			char response_bytes[2] = { STATUS_FAILED, req.wValue() };
-			ep0->sendData(response_bytes, sizeof(response_bytes));
-			break;
-		}
-	}
-	return false;
-}
-
 /**
  * USBTMCSetupRequestHandler implementation
  *
@@ -472,15 +439,15 @@ int USBTMCDevice::USBTMCSetupRequestHandler::usb_set_interface(USBDevice&, char*
 }
 
 USBTMCDevice create_usbtmc_device(const wchar_t* manufacturer_name,
-								  const wchar_t* product_name,
-								  const wchar_t* serial_number,
-								  const USBTMC_bInterfaceProtocol protocol,
-								  USBTMCCapabilities* capabilities,
-								  const USBDeviceFactory& cstr,
-								  const Invokable<std::exclusive_ptr<USBOutEndpoint>()>& get_out_ep,
-								  const Invokable<std::exclusive_ptr<USBInEndpoint>()>& get_in_ep,
-								  USBTMCInterface::out_msg_handler& out_handler,
-								  USBTMCInterface::in_msg_handler& in_handler)
+				  const wchar_t* product_name,
+				  const wchar_t* serial_number,
+				  const USBTMC_bInterfaceProtocol protocol,
+				  USBTMCCapabilities* capabilities,
+				  const USBDeviceFactory& cstr,
+				  const Invokable<std::exclusive_ptr<USBOutEndpoint>()>& get_out_ep,
+				  const Invokable<std::exclusive_ptr<USBInEndpoint>()>& get_in_ep,
+				  USBTMCInterface::out_msg_handler& out_handler,
+				  USBTMCInterface::in_msg_handler& in_handler)
 {
 	USBConfigurationFactory configFactory =
 		[&](unsigned char n) -> USBConfiguration*
@@ -499,9 +466,9 @@ USBTMCDevice create_usbtmc_device(const wchar_t* manufacturer_name,
 			// the host.
 			USBTMCInterface* iface =
 			    new(std::nothrow) USBTMCInterface(protocol,
-												  capabilities,
-												  get_out_ep(),
-												  get_in_ep());
+							      capabilities,
+							      get_out_ep(),
+							      get_in_ep());
 			if (!iface) {
 				delete new_config;
 				return nullptr;
@@ -517,8 +484,8 @@ USBTMCDevice create_usbtmc_device(const wchar_t* manufacturer_name,
 
 	usbtmc_setup_request_handler* handler =
 		new(std::nothrow) usbtmc_setup_request_handler{ manufacturer_name,
-														product_name,
-														serial_number };
+								product_name,
+								serial_number };
 	tmc_dev.addSetupRequestHandler(handler);
 	return tmc_dev;
 }

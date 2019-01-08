@@ -28,6 +28,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+.global push_primask
+.global pop_primask
 .global mask_interrupts
 .global unmask_interrupts
 .global do_isb
@@ -37,6 +39,14 @@
 
 .text
 
+push_primask:
+	MRS	r0, PRIMASK
+	MOV	PC, LR
+
+pop_primask:
+	MSR	PRIMASK, r0
+	MOV	PC, LR
+	
 mask_interrupts:
 	CPSID	i
 	MOV	PC, LR

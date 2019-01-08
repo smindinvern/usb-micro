@@ -34,7 +34,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
+	unsigned int push_primask();
+	void pop_primask(unsigned int);
 	void mask_interrupts();
 	void unmask_interrupts();
 	void do_isb();

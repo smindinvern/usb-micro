@@ -50,7 +50,7 @@ constexpr unsigned int exp2(const unsigned int n)
 }
 
 #define PAGE_SIZE 64
-#define NUM_PAGES exp2(log2((size_t )((RAM_SIZE - STACK_SIZE) / PAGE_SIZE)))
+#define NUM_PAGES exp2(log2((size_t )((RAM_SIZE) / (PAGE_SIZE))))
 #define HEAP_LEVELS (log2(NUM_PAGES) + 1)
 
 extern "C" {
@@ -64,6 +64,7 @@ extern "C" {
 class MemoryManager
 {
 private:
+	volatile char stack[STACK_SIZE];
 	static constexpr unsigned int node_count{ 2*NUM_PAGES - 1 };
 	char heap[node_count] {};
 	unsigned int find_free_page(unsigned int);
@@ -74,11 +75,12 @@ private:
 public:
 	MemoryManager()
 	{
-		memset(heap, 0, NUM_PAGES * PAGE_SIZE);
-		//		base_address = (reinterpret_cast<unsigned int>(this) & ~0b11) + 4;
-		/* mark the first (NUM_PAGES/PAGE_SIZE) page as allocated
+		// Erase RAM to ensure deterministic behavior
+		// across boots.
+		memset(heap, 0, RAM_SIZE - STACK_SIZE);
+		/* mark the first few pages as allocated
 		   to account for the memory we take up */
-		allocate_memory(sizeof(heap));
+		allocate_memory(sizeof(*this));
 	}
 
 	void* allocate_memory(unsigned int size);

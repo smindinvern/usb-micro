@@ -209,13 +209,13 @@ void* MemoryManager::resize(void* orig, unsigned int nu_size)
 
 MemoryManager* init_mm()
 {
-	MemoryManager* mm{ new(reinterpret_cast<void*>(0x20001000)) MemoryManager() };
+	MemoryManager* mm{ new(reinterpret_cast<void*>(0x20000000)) MemoryManager() };
 	return mm;
 }
 
 MemoryManager* getMemoryManager()
 {
-	return reinterpret_cast<MemoryManager*>(0x20001000);
+	return reinterpret_cast<MemoryManager*>(0x20000000);
 }
 
 extern "C" {

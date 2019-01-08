@@ -29,6 +29,7 @@
  */
 
 #include "mm.hh"
+#include "primitives.hh"
 
 unsigned int page_level(unsigned int page)
 {
@@ -197,13 +198,27 @@ void MemoryManager::mark_page(unsigned int page, char allocated)
 
 void* MemoryManager::resize(void* orig, unsigned int nu_size)
 {
-	unsigned int orig_size = allocation_size(page_from_address(orig));
+	// If we're preempted our allocation could be stolen.
+	unsigned int primask{ push_primask() };
+
+	unsigned int page{ page_from_address(orig) };
+	unsigned int orig_size = allocation_size(page);
+
+	// Mark the page as free so that we have a chance to resize in-place.
+	mark_page(page, 0);
 	void* nu = allocate_memory(nu_size);
 	if (!nu) {
+		// Restore original state.
+		mark_page(page, 1);
+		pop_primask(primask);
 		return nullptr;
 	}
-	memcpy(nu, orig, orig_size);
-	free_memory(orig);
+	// If the allocation was resized in-place then we don't need to copy anything.
+	if (nu != orig) {
+		unsigned int copy_size = (orig_size < nu_size) ? orig_size : nu_size;
+		memcpy(nu, orig, copy_size);
+	}
+	pop_primask(primask);
 	return nu;
 }
 

@@ -37,13 +37,15 @@ int usbtmc_endpoint_request_handler(USBControlEndpoint* ep0, char* bytes)
 	USBStandardDeviceRequest req{ bytes };
 	const unsigned int& bRequest{ req.bRequest() };
 	switch (bRequest) {
+	default:
+		return false;
 	case INITIATE_ABORT_BULK_IN:
 		// this covers the case where a command message was rejected by the command parser.
 		// in this case, a response message will not be sent, so we just need to respond to
 		// the host here to confirm.
 		char response_bytes[2] = { STATUS_FAILED, req.wValue() };
 		ep0->sendData(response_bytes, sizeof(response_bytes));
-		break;
+		return true;
 	}
 }
 

@@ -55,17 +55,8 @@ extern "C" {
 		Reg32 sysctrl_pclksr{ SYSCTRL_PCLKSR };
 		while ((sysctrl_pclksr & (1 << 4)) == 0);
 
-		// Set up DFLL48M to use USB CRM
-		// Reg16 dfllctrl{ SYSCTRL_DFLLCTRL };
-		// dfllctrl = 0;
-		// Reg32 dfllmul{ SYSCTRL_DFLLMUL };
-		// dfllmul = 0x10BB80;
-		// dfllctrl = (1 << 7) | (1 << 6) | (1 << 5) | (1 << 2) | (1 << 1);
-	
-		// Enable GCLK_USB fed from DFLL48M via USB clock recovery.
-        // setup_gclkgen(GCLKGEN7, DFLL48M, 1);
-		setup_gclk(GCLKGEN0, GCLK_USB);
-        // while ((sysctrl_pclksr & (1 << 4)) == 0);
+		// GCLKGEN3 is 32.768kHz XO multiplied up to 48MHz by DFLL48M.
+		setup_gclk(GCLKGEN3, GCLK_USB);
 	
 		// Load USB PAD calibration values from NVM OTP CAL region
 		const unsigned int* nvm_otp{ (const unsigned int*)NVM_OTP };

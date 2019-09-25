@@ -155,6 +155,19 @@ void setup_clocks()
 	nvmctrlb = (nvmctrlb & ~(0xf << 1)) | (1 << 1);
 	// Feed GCLKGEN0 with DPLL.  This sets GCLK_MAIN to 48MHz.
 	setup_gclkgen(GCLKGEN0, FDPLL96M, 1);
+
+	// USB CRM doesn't seem to work...
+	// Use the external XO instead.
+	// SAMD21 Xplained Pro board has a watch crystal on board.
+	setup_xosc32k();
+	// Feed XOSC32K into GCLKGEN1.
+	setup_gclkgen(GCLKGEN1, XOSC32K, 1);
+	// Feed GCLKGEN1 into the DFLL.
+	setup_gclk(GCLKGEN1, GCLK_DFLL48M_REF);
+	// Setup DFLL48M to multiply 32kHz up to 48MHz.
+	configure_dfll48m(1465U);
+	// Feed DFLL48M output to GCLKGEN3
+	setup_gclkgen(GCLKGEN3, DFLL48M, 1);
 }
 
 void init()

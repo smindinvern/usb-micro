@@ -64,6 +64,60 @@ extern const unsigned char ATkey_usage_translation_table[130];
 // Translates key make codes to their corresponding key number.
 extern const unsigned char keycode_ATkey_translation_table[0x85];
 
+extern const unsigned char NEXTmodifier_table[7];
+extern const unsigned char NEXTkeycode_usage_translation_table[0x51];
+
+bool insert_keycode(char* keys, unsigned char keycode)
+{
+	int freeIndex = -1;
+	for (unsigned int i = 0; i < 6; i++) {
+		if (keys[i] == 0) {
+			freeIndex = i;
+		}
+		else if (keys[i] == keycode) {
+			return false;
+		}
+	}
+	if (freeIndex == -1) {
+		return false;
+	}
+	keys[freeIndex] = keycode;
+	return true;
+}
+
+bool remove_keycode(char* keys, unsigned char keycode)
+{
+	for (unsigned int i = 0; i < 6; i++) {
+		if (keys[i] == keycode) {
+			keys[i] = 0;
+			return true;
+		}
+	}
+	return false;
+}
+
+#define tx_pin PA18
+#define rx_pin PA19
+
+void send_reset()
+{
+	Reg32 data{ SERCOM3 + 0x28 };
+	Reg8 intflag{ SERCOM3 + 0x18 };
+	// send reset
+	data = 0x1ef;
+	while (!(intflag & (1 << 1)));
+	data = 0x000;
+	while (!(intflag & (1 << 1)));
+}
+
+void send_query()
+{
+	Reg32 data{ SERCOM3 + 0x28 };
+	Reg8 intflag{ SERCOM3 + 0x18 };
+	data = 0x110;
+	while (!(intflag & (1 << 1)));
+}
+
 unsigned short get_keycode()
 {
 	union {
@@ -71,22 +125,32 @@ unsigned short get_keycode()
 		unsigned short value;
 	} keycode;
 
-	Reg32 data{ SERCOM5 + 0x28 };
-	Reg8 intflag{ SERCOM5 + 0x18 };
+	Reg32 data{ SERCOM3 + 0x28 };
+	Reg8 intflag{ SERCOM3 + 0x18 };
 	// Send keyboard query: 0x110
-	data = 0x110;
+	send_query();
 	// Set a timer for 5 ms and wait for response.
-	set_systick_rvr(systick_get_tenms());
- try_again:
+	set_systick_rvr(212766);
 	reset_systick();
 	while (!(get_systick_cvr() & 0x80000000) && !(intflag & (1 << 2)));
 	if (!(intflag & (1 << 2))) {
-		goto try_again;
+		send_reset();
+		return 0;
 	}
 	keycode.bytes[0] = data & 0xFF;
 	while (!(intflag & (1 << 2)));
 	keycode.bytes[1] = data & 0xFF;
 	return keycode.value;
+}
+
+void set_leds()
+{
+	Reg32 data{ SERCOM3 + 0x28 };
+	Reg8 intflag{ SERCOM3 + 0x18 };
+
+	data = 0x100;
+	while (!(intflag & (1 << 1)));
+	data = 0x003;
 }
 
 extern int usb_hid_class_request_handler(USBControlEndpoint* ep0, char* buf);
@@ -95,24 +159,22 @@ extern "C" {
 
 	void init_uart()
 	{
-#define tx_pin PB00
-#define rx_pin PB01
-#define txpo (0x1)
 #define rxpo (0x3)
-		// Assign rx_pin and tx_pin to SERCOM
+#define txpo (0x1)
+		// Assign rx_pin to SERCOM3
 		set_pin_peripheral(PIN_GROUP(rx_pin), PIN_N(rx_pin), 'D' - 'A');
 		set_pin_peripheral(PIN_GROUP(tx_pin), PIN_N(tx_pin), 'D' - 'A');
 
-		// Enable SERCOM0 clock
+		// Enable SERCOM3 clock
 		Reg32 apbcmask{ PM_APBCMASK };
-		apbcmask |= 1 << 2;
+		apbcmask |= 1 << 5;
 
-		// Route GCLK_MAIN to GCLK_SERCOM5_CORE
-		setup_gclk(GCLKGEN0, GCLK_SERCOM5_CORE);
+		// Route GCLK_MAIN to GCLK_SERCOM3_CORE
+		setup_gclk(GCLKGEN0, GCLK_SERCOM3_CORE);
 
-		// Disable and configure SERCOM5
-		Reg8 syncbusy{ SERCOM5 + 0x1c };
-		Reg32 ctrla{ SERCOM5 };
+		// Disable and configure SERCOM3
+		Reg8 syncbusy{ SERCOM3 + 0x1c };
+		Reg32 ctrla{ SERCOM3 };
 		// CTRLA.SWRST = 1
 		ctrla = 1;
 		while (syncbusy & 1);
@@ -128,22 +190,26 @@ extern "C" {
 		ctrla = MODE | RXPO | TXPO | DORD;
 		// Configure CTRLB.CHSIZE for 9-bit characters
 		const int CHSIZE = 1;
-		// CTRLB.SBMODE = 0 (1 stop bit)
+		// CTRLB.SBMODE = 1 (1 stop bit)
+		const int SBMODE = 1 << 6;
 		// CTRLB.RXEN = 1
 		const int RXEN = 1 << 17;
 		// CTRLB.TXEN = 1
 		const int TXEN = 1 << 16;
-		Reg32 ctrlb{ SERCOM5 + 0x04 };
-		ctrlb = CHSIZE | RXEN | TXEN;
+		Reg32 ctrlb{ SERCOM3 + 0x04 };
+		ctrlb = CHSIZE | SBMODE | RXEN | TXEN;
 		// Configure BAUD register
 		// As per 25.6.2.3 of the SAMD21 datasheet:
 		// BAUD = 65536 * (1 - 16*(f_baud/f_ref))
 		// with f_baud = 1/54us ~= 18.519kHz and f_ref = 48MHz
 		// BAUD = 65536 * (1 - 16*0.0003858) = 65536 * 0.99382716 ~= 65131
-		Reg16 baud{ SERCOM5 + 0x0c };
-		baud = 65131;
+		// fixme
+		// the /actual/ clock period is 52.8us.
+		Reg16 baud{ SERCOM3 + 0x0c };
+		// baud = 65070;
+		baud = 65130;
 		// Disable all interrupts
-		Reg8 intenclr{ SERCOM5 + 0x14 };
+		Reg8 intenclr{ SERCOM3 + 0x14 };
 		intenclr = 0xFF;
 		// Enable UART
 		// CTRLA.ENABLE = 1
@@ -237,16 +303,25 @@ extern "C" {
 				}
 				USBInEndpoint* interrupt_in_ep =
 				    new(std::nothrow) SAMDUSBInEndpoint(3, USBEndpoint::ep_type::interrupt_ep,
-														8, 1, descs);
+														16, 1, descs);
 				if (!interrupt_in_ep) {
 					delete new_config;
 					return nullptr;
 				}
+				// Disable interrupts on interrupt IN endpoint.
+				// fixme
+				// transmit failures should be handled instead of being ignored.
+				Reg8 ep0_intenclr{ USB_EPINTENCLR(0) };
+				ep0_intenclr = 0b11001110;
+				Reg8 intenclr{ USB_EPINTENCLR(3) };
+				intenclr = 0xFF;
 				auto report_request_handler =
 				[=]() -> int
 				{
 					// Send the report again.
 					interrupt_in_ep->sendData(report, 8, true);
+					Reg8 intenclr{ USB_EPINTENCLR(3) };
+					intenclr = 0xFF;
 					// Reg32 udp_idr{ UDP_IDR };
 					// udp_idr = 1 << 3;
 					return true;
@@ -286,48 +361,45 @@ extern "C" {
 				       desc, std::move(configFactory),
 					   new(std::nothrow) USBDeviceGenericImpl() };
 		usb_status->device = &dev;
-
+		
 		enable_interrupt(7);
 		
 		// Set up to send the initial report.
 		while (!usb_status->configured);
-		wait_n_10ms_periods(100);
+
+		// Reset keyboard and start getting keycodes.
+		get_keycode();
+		send_reset();
+		get_keycode();
+		send_reset();
 		while (1) {
 			unsigned short keycode = get_keycode();
-#if 0
-			// First determine if this is a modifier key or not.
-			unsigned char make_code = keycode & 0x00FF;
-			unsigned char is_break = (keycode & 0xFF00) == 0xF000;
-			switch (make_code) {
-			case 0x11:  // Left CTRL
-				modifiers_state = (modifiers_state & ~is_break) | !is_break;
-				break;
-			case 0x12:  // Left SHIFT
-				modifiers_state = (modifiers_state & ~(is_break << 1)) | (!is_break << 1);
-				break;
-			case 0x19:  // Left ALT
-				modifiers_state = (modifiers_state & ~(is_break << 2)) | (!is_break << 2);
-				break;
-			case 0x58:  // Right CTRL
-				modifiers_state = (modifiers_state & ~(is_break << 4)) | (!is_break << 4);
-				break;
-			case 0x59:  // Right SHIFT
-				modifiers_state = (modifiers_state & ~(is_break << 5)) | (!is_break << 5);
-				break;
-			case 0x39:  // Right ALT
-				modifiers_state = (modifiers_state & ~(is_break << 6)) | (!is_break << 6);
-				break;
-			default:
-				unsigned char usage = ATkey_usage_translation_table[keycode_ATkey_translation_table[make_code]];
-				if (is_break) {
-					remove_keycode(pressed_keys, usage);
-				}
-				else {
-					insert_keycode(pressed_keys, usage);
+			if ((keycode & 0x00FF)==0) {
+				continue;
+			}
+			bool is_break = (keycode & 0x0080)!=0;
+			unsigned char usage = NEXTkeycode_usage_translation_table[keycode&0x007F];
+			bool updated = false;
+			if (is_break) {
+				updated = remove_keycode(pressed_keys, usage);
+			}
+			else {
+				updated = insert_keycode(pressed_keys, usage);
+			}
+			// Handle modifiers
+			unsigned char old_modifiers_state = modifiers_state;
+			modifiers_state = 0;
+			for (unsigned int i = 0; i < sizeof(NEXTmodifier_table)/sizeof(NEXTmodifier_table[0]); i++) {
+				if (keycode & (1 << (i + 8))) {
+					modifiers_state |= NEXTmodifier_table[i];
 				}
 			}
-			static_cast<USBInEndpoint*>(dev.getEndpoint(3))->sendData(report, 8, true);
-#endif
+			if (modifiers_state!=old_modifiers_state) {
+				updated = true;
+			}
+			if (updated) {
+				static_cast<USBInEndpoint*>(dev.getEndpoint(3))->sendData(report, 8, true);
+			}
 		}
 	}
 }

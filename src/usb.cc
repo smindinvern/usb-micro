@@ -459,6 +459,7 @@ int USBDevice::out_token_received(unsigned int ep)
 			// this is an OUT endpoint, so we are receiving data
 			data = iface.outEndpoints[i]->receiveData(length);
 			if (!length || !data) {
+				delete[] data;
 				return -1;
 			}
 			break;
@@ -470,6 +471,7 @@ int USBDevice::out_token_received(unsigned int ep)
 			auto& handler(iface.outTokenHandlers[i].second);
 			int status{ handler(data, length) };
 			if (status < 0) {
+				delete[] data;
 				return status;
 			}
 			else if (status > 0) {

@@ -64,7 +64,7 @@ extern "C" {
 	
 		// Enable GCLK_USB fed from DFLL48M via USB clock recovery.
         // setup_gclkgen(GCLKGEN7, DFLL48M, 1);
-		setup_gclk(GCLKGEN0, GCLK_USB);
+		setup_gclk(GCLKGEN1, GCLK_USB);
         // while ((sysctrl_pclksr & (1 << 4)) == 0);
 	
 		// Load USB PAD calibration values from NVM OTP CAL region

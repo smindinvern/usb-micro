@@ -63,32 +63,38 @@ void setup_xosc32k()
 
 void configure_dfll48m(unsigned short multiplier)
 {
-	// First disable DFLL48M.
 	Reg16 dfllctrl{ SYSCTRL_DFLLCTRL };
-	dfllctrl = 0;
 	// DFLL must be enabled before configuring.  Due to silicon errata, ensure
 	// that DFLLCTRL.ONDEMAND is cleared.
 	dfllctrl = (1U << 1U);
-	// DFLLCTRL.WAITLOCK = 1
-	// DFLLCTRL.QLDIS = 1
-	// DFLLCTRL.ONDEMAND = 0
-	// DFLLCTRL.RUNSTDBY = 1
-	dfllctrl |= (1U << 11U) | (1U << 9U) | (1U << 6U);
+
+	// Wait for PCLKSR.DFLLRDY
+	Reg32 pclksr{ SYSCTRL_PCLKSR };
+	while (!(pclksr & (1U << 4U)));
+
+	// Write DFLLMUL
+	Reg32 dfllmul{ SYSCTRL_DFLLMUL };
+	// DFLLMUL.CSTEP = 1
+	// DFLLMUL.FSTEP = 1
+	// DFLLMUL.MUL = multiplier
+	dfllmul = (1U << 26U) | (1U << 16U) | multiplier;
+
+	// Write DFLLVAL
 	// Set DFLLVAL.COURSE to value from OTP *before* entering closed-loop mode.
 	Reg32 dfllval{ SYSCTRL_DFLLVAL };
 	// DFLLVAL.COURSE from NVMOTP
 	const unsigned char* otp = (const unsigned char* )NVM_OTP;
 	// DFLL48M COURSE CAL = bits 63:58
 	dfllval = ((otp[7] & 0xFC) >> 2) << 10;
-	Reg32 dfllmul{ SYSCTRL_DFLLMUL };
-	// DFLLMUL.CSTEP = 1
-	// DFLLMUL.FSTEP = 1
-	// DFLLMUL.MUL = multiplier
-	dfllmul = (1U << 26U) | (1U << 16U) | multiplier;
 	// DFLLCTRL.MODE = 1; enter closed-loop mode.
-	dfllctrl |= (1U << 2U);
+	// dfllctrl |= (1U << 2U);
+	// DFLLCTRL.WAITLOCK = 1
+	// DFLLCTRL.QLDIS = 1
+	// DFLLCTRL.ONDEMAND = 0
+	// DFLLCTRL.RUNSTDBY = 1
+	// DFLLCTRL.USBCRM = 1
+	dfllctrl = (1U << 11U) | (1U << 10U) | (1U << 9U) | (1U << 8U) | (1U << 6U) | (1U << 5U) | (1U << 2U) | (1U << 1U);
 	// Wait for DFLL48M to lock.
-	Reg32 pclksr{ SYSCTRL_PCLKSR };
 	while (!(pclksr & (1U << 4U)));
 }
 
@@ -125,11 +131,21 @@ void setup_clocks()
 	 *                                AHB/APB clocks
 	 */
 
-	// Enable internal 32K oscillator.
-	Reg32 osc32k{ SYSCTRL_OSC32K };
-	osc32k |= (0x7 << 8) | (1 << 2) | (1 << 1);
+#if 0
+	configure_dfll48m(48000);
+	setup_gclkgen(GCLKGEN1, DFLL48M, 1);
+	// Before switching CPU to 48MHz clock, configure NVM controller to use 1 wait-state,
+	// as per section 37.12 of the SAMD21 datasheet.
+	Reg32 nvmctrlb{ NVMCTRL_CTRLB };
+	nvmctrlb = (nvmctrlb & ~(0xf << 1)) | (1 << 1);
+	// Feed GCLKGEN0 with DPLL.  This sets GCLK_MAIN to 48MHz.
+	setup_gclkgen(GCLKGEN0, GCLKGEN1, 1);
+#endif	
+  
+#if 1
+	setup_xosc32k();
 
-	setup_gclkgen(GCLKGEN2, OSC32K, 1);
+	setup_gclkgen(GCLKGEN2, XOSC32K, 1);
 	setup_gclk(GCLKGEN2, GCLK_DPLL_32K);
 	setup_gclk(GCLKGEN2, GCLK_DPLL);
 
@@ -155,6 +171,17 @@ void setup_clocks()
 	nvmctrlb = (nvmctrlb & ~(0xf << 1)) | (1 << 1);
 	// Feed GCLKGEN0 with DPLL.  This sets GCLK_MAIN to 48MHz.
 	setup_gclkgen(GCLKGEN0, FDPLL96M, 1);
+	// Feed GCLKGEN1 with DPLL to clock USB module.
+	setup_gclkgen(GCLKGEN1, FDPLL96M, 1);
+#endif
+}
+
+void samd_init_usb()
+{
+	configure_dfll48m(48000);
+	setup_gclkgen(GCLKGEN1, DFLL48M, 1);
+	// Feed GCLKGEN0 with DPLL.  This sets GCLK_MAIN to 48MHz.
+	// setup_gclkgen(GCLKGEN0, GCLKGEN1_OUTPUT, 1);
 }
 
 void init()

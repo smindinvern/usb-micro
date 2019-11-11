@@ -396,13 +396,15 @@ class USBTMCInterface : public USBInterface
 
 	USBTMCCapabilities* capabilities;
 	USBTMCBulkOutState out_state;
-	
+  
 	static bool append_transfer_to_message(InProgressTransfer& t, InProgressTransfer& m);
 
 	int handle_current_message();
 	int out_token_handler(char* packet_data, unsigned int bytes);
 	int in_token_handler();
-	int class_request_handler(USBControlEndpoint *ep0, char* bytes);
+	int class_request_handler(USBControlEndpoint* ep0, char* bytes);
+	int bulk_in_request_handler(USBControlEndpoint* ep0, char* bytes);
+	int bulk_out_request_handler(USBControlEndpoint* ep0, char* bytes);
 public:
 	typedef Invokable<int(unsigned char MsgID,
 						  unsigned char bTag,

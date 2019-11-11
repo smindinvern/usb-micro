@@ -32,7 +32,21 @@
 #include "usbtmc.hh"
 #include "usbtmc488.hh"
 
-int usbtmc_endpoint_request_handler(USBControlEndpoint* ep0, char* bytes)
+/**
+ * USBTMCInterface implementation
+ *
+ * USBTMCInterface is a wrapper around USBInterface that
+ * allows a user to register handlers for the following messages:
+ *  -DEV_DEP_MSG_OUT
+ *  -REQUEST_DEV_DEP_MSG_IN
+ *  -VENDOR_SPECIFIC_OUT
+ *  -REQUEST_VENDOR_SPECIFIC_IN
+ *
+ * Receipt and aggregation of message contents is taken care of
+ * by the interface.
+ */
+
+int USBTMCInterface::bulk_in_request_handler(USBControlEndpoint* ep0, char* bytes)
 {
 	USBStandardDeviceRequest req{ bytes };
 	const unsigned int& bRequest{ req.bRequest() };
@@ -49,20 +63,34 @@ int usbtmc_endpoint_request_handler(USBControlEndpoint* ep0, char* bytes)
 	}
 }
 
-/**
- * USBTMCInterface implementation
- *
- * USBTMCInterface is a wrapper around USBInterface that
- * allows a user to register handlers for the following messages:
- *  -DEV_DEP_MSG_OUT
- *  -REQUEST_DEV_DEP_MSG_IN
- *  -VENDOR_SPECIFIC_OUT
- *  -REQUEST_VENDOR_SPECIFIC_IN
- *
- * Receipt and aggregation of message contents is taken care of
- * by the interface.
- */
-
+int USBTMCInterface::bulk_out_request_handler(USBControlEndpoint* ep0, char* bytes)
+{
+	USBStandardDeviceRequest req{ bytes };
+	const unsigned int& bRequest{ req.bRequest() };
+	switch (bRequest) {
+	default:
+		return false;
+	case INITIATE_ABORT_BULK_OUT:
+		if (out_state.current_state != USBTMCBulkOutState::IDLE) {
+			char response_bytes[2] = { STATUS_SUCCESS, out_state.last_bTag };
+			out_state.current_transfer = {};
+			out_state.current_message = {};
+			bulk_out->stall();
+			ep0->sendData(response_bytes, sizeof(response_bytes));
+		}
+		else {
+			char response_bytes[2] = { STATUS_FAILED, out_state.last_bTag };
+			ep0->sendData(response_bytes, sizeof(response_bytes));
+		}
+		break;
+	case CHECK_ABORT_BULK_OUT_STATUS:
+		char response_bytes[8] = { STATUS_SUCCESS, 0 };
+		ep0->sendData(response_bytes, sizeof(response_bytes));
+		break;
+	}
+	return true;
+}
+	
 USBTMCInterface::USBTMCInterface(USBTMC_bInterfaceProtocol bInterfaceProtocol,
 				 USBTMCCapabilities* interface_capabilities, /* HACK */
 				 std::exclusive_ptr<USBOutEndpoint>&& bulk_out_ep,
@@ -71,8 +99,9 @@ USBTMCInterface::USBTMCInterface(USBTMC_bInterfaceProtocol bInterfaceProtocol,
 	  capabilities{ interface_capabilities }
 {
 	bulk_out = bulk_out_ep.clear_ptr();
+	bulk_out->addClassRequestHandler({ [this](auto x, auto y) { return this->bulk_out_request_handler(x, y); } });
 	bulk_in = new(std::nothrow) USBTMCInEndpoint(std::move(*bulk_in_ep.clear_ptr()));
-	bulk_in->addClassRequestHandler(usbtmc_endpoint_request_handler);
+	bulk_in->addClassRequestHandler({ [this](auto x, auto y) { return this->bulk_in_request_handler(x, y); } });
 	USBInterface::addOutEndpoint(bulk_out, {
 			[&](char* d, unsigned int n) {
 				return out_token_handler(d, n);
@@ -319,12 +348,11 @@ int USBTMCInterface::handle_dev_dep_msg_out(char* packet_data, unsigned int byte
 	if (USBTMCDevDepMsgOut::size() + transferSize != bytes) {
 		return -1;
 	}
-	if (dev_dep_msg_out_handler) {
-		return (*dev_dep_msg_out_handler)(MsgID, bTag, transferSize, msg_start);
+	int status{ dev_dep_msg_out_handler ? (*dev_dep_msg_out_handler)(MsgID, bTag, transferSize, msg_start) : -1 };
+	if (status < 0) {
+		// this->bulk_out->stall();
 	}
-	else {
-		return -1;
-	}
+	return status;
 }
 
 int USBTMCInterface::handle_dev_dep_msg_in(char* packet_data, unsigned int bytes)

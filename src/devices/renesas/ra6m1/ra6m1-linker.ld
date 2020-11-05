@@ -28,68 +28,56 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "arm.hh"
-#include "Registers.hh"
+MEMORY
+{
+	rom (rx)  : ORIGIN = 0x00000000, LENGTH = 0x00080000
+	ram (rwx) : ORIGIN = 0x20000000, LENGTH = 0x00020000
+}
 
-extern "C" {
-	void enable_interrupt(unsigned int interrupt)
-	{
-		Reg32 nvic_iser{ ARM_NVIC_ISER(interrupt / 32) };
-
-		interrupt %= 32;
-		nvic_iser |= (1 << interrupt);
+SECTIONS
+{
+	.text : {
+			*(.vector_table)
+			. = 0x00000400;
+			*(.option_rom)
+			. = 0x00000500;
+			*(.text)
+			*(.rodata)
+			*(.got)
+      			*(.data)
+     			*(.bss)
+	} > rom = 0xFF
+	.debug_arranges 0 : {
+			*(.debug_arranges)
 	}
-
-	unsigned int get_interrupt_mask(unsigned int offset)
-	{
-		Reg32 nvic_iser{ ARM_NVIC_ISER(offset) };
-		return (unsigned int)nvic_iser;
+	.debug_info 0 : {
+			*(.debug_info)
 	}
-
-	void set_interrupt_mask(unsigned int offset, unsigned int mask)
-	{
-		Reg32 nvic_iser{ ARM_NVIC_ISER(offset) };
-		nvic_iser = mask;
+	.debug_abbrev 0 : {
+			*(.debug_abbrev)
 	}
-
-	void disable_interrupt(unsigned int interrupt)
-	{
-		Reg32 nvic_icer{ ARM_NVIC_ICER(interrupt / 32) };
-
-		interrupt %= 32;
-		nvic_icer |= (1 << interrupt);
+	.debug_line 0 : {
+			*(.debug_line)
 	}
-
-	void set_interrupt_priority(unsigned int interrupt,
-				    unsigned char priority)
-	{
-		Reg32 nvic_ipr{ ARM_NVIC_IPR(interrupt / 4) };
-		interrupt %= 4;
-		nvic_ipr = (nvic_ipr & ~(0b11 << (8*interrupt + 6))) | ((priority & 0b11) << (8*interrupt + 6));
+	.debug_frame 0 : {
+			*(.debug_frame)
 	}
-
-	void wait_n_systicks(unsigned int n)
-	{
-		Reg32 syst_rvr{ ARM_SYST_RVR };
-		syst_rvr = n & 0x00FFFFFF;
-		Reg32 syst_cvr{ ARM_SYST_CVR };
-		syst_cvr = 0;
-		Reg32 syst_csr{ ARM_SYST_CSR };
-		syst_csr = (1 << 2) | 1;
-		while ((syst_csr & (1 << 16)) == 0);
+	.debug_str 0 : {
+			*(.debug_str)
 	}
-
-	unsigned int systick_get_tenms()
-	{
-		Reg32 syst_calib{ ARM_SYST_CALIB };
-		return syst_calib & 0x00FFFFFF;
+	.debug_loc 0 : {
+			*(.debug_loc)
 	}
-
-	void wait_n_10ms_periods(unsigned short n)
-	{
-		unsigned int tenms{ systick_get_tenms() };
-		for (unsigned short i = 0; i < n; i++) {
-			wait_n_systicks(tenms);
-		}
+	.debug 0 : {
+			*(.debug)
+	}
+	.line 0 : {
+			*(.line)
+	}
+	.debug_srcinfo 0 : {
+			*(.debug_srcinfo)
+	}
+	.debug_sfnames 0 : {
+			*(.debug_sfnames)
 	}
 }

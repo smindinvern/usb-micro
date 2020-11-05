@@ -1,0 +1,20 @@
+Import('env')
+
+env.Append(CPPDEFINES=[('FLASH_SIZE', '0x80000'),('RAM_SIZE', '0x20000')])
+
+objs = env.SConscript('../../arm/cortex-m4.SConscript')
+
+# Exported for consumption globally.
+env.AppendUnique(CPPPATH=[Dir('.')])
+env.AppendUnique(CCFLAGS=['-mlittle-endian'])
+env.Append(LINKFLAGS=['-T', File("ra6m1-linker.ld")])
+
+files = [ 'interrupt_table.s'
+        , 'interrupt_handlers.cc'
+	, 'ra6m1_init.cc'
+	, 'ra6m1_clocks.cc'
+	, 'ra6m1_usb.cc'
+	]
+
+objs += [env.Object(x) for x in files]
+Return('objs')

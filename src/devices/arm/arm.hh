@@ -36,7 +36,9 @@ extern "C" {
 #endif
 	void enable_interrupt(unsigned int interrupt);
 	void set_interrupt_priority(unsigned int interrupt,
-								unsigned char priority);
+				    unsigned char priority);
+	unsigned int get_interrupt_mask(unsigned int offset);
+	void set_interrupt_mask(unsigned int offset, unsigned int mask);
 	void wait_n_systicks(unsigned int n);
 	unsigned int systick_get_tenms();
 	void wait_n_10ms_periods(unsigned short n);

@@ -29,67 +29,39 @@
  */
 
 #include "arm.hh"
-#include "Registers.hh"
+#include "main.hh"
+#include "mm.hh"
+#include "ra6m1.hh"
 
-extern "C" {
-	void enable_interrupt(unsigned int interrupt)
-	{
-		Reg32 nvic_iser{ ARM_NVIC_ISER(interrupt / 32) };
-
-		interrupt %= 32;
-		nvic_iser |= (1 << interrupt);
-	}
-
-	unsigned int get_interrupt_mask(unsigned int offset)
-	{
-		Reg32 nvic_iser{ ARM_NVIC_ISER(offset) };
-		return (unsigned int)nvic_iser;
-	}
-
-	void set_interrupt_mask(unsigned int offset, unsigned int mask)
-	{
-		Reg32 nvic_iser{ ARM_NVIC_ISER(offset) };
-		nvic_iser = mask;
-	}
-
-	void disable_interrupt(unsigned int interrupt)
-	{
-		Reg32 nvic_icer{ ARM_NVIC_ICER(interrupt / 32) };
-
-		interrupt %= 32;
-		nvic_icer |= (1 << interrupt);
-	}
-
-	void set_interrupt_priority(unsigned int interrupt,
-				    unsigned char priority)
-	{
-		Reg32 nvic_ipr{ ARM_NVIC_IPR(interrupt / 4) };
-		interrupt %= 4;
-		nvic_ipr = (nvic_ipr & ~(0b11 << (8*interrupt + 6))) | ((priority & 0b11) << (8*interrupt + 6));
-	}
-
-	void wait_n_systicks(unsigned int n)
-	{
-		Reg32 syst_rvr{ ARM_SYST_RVR };
-		syst_rvr = n & 0x00FFFFFF;
-		Reg32 syst_cvr{ ARM_SYST_CVR };
-		syst_cvr = 0;
-		Reg32 syst_csr{ ARM_SYST_CSR };
-		syst_csr = (1 << 2) | 1;
-		while ((syst_csr & (1 << 16)) == 0);
-	}
-
-	unsigned int systick_get_tenms()
-	{
-		Reg32 syst_calib{ ARM_SYST_CALIB };
-		return syst_calib & 0x00FFFFFF;
-	}
-
-	void wait_n_10ms_periods(unsigned short n)
-	{
-		unsigned int tenms{ systick_get_tenms() };
-		for (unsigned short i = 0; i < n; i++) {
-			wait_n_systicks(tenms);
-		}
-	}
+void set_ck_div_(const unsigned int bits, const unsigned int shift)
+{
+    Reg32 sckdivcr{ SCKDIVCR };
+    unsigned int temp = sckdivcr & ~(0b111 << shift);
+    // 9.2.1: Wait 750ns before changing, 250ns after changing.
+    wait_n_systicks(2);
+    sckdivcr = temp | (bits << shift);
+    wait_n_systicks(2);
 }
+
+void set_main_clock_wait_time(unsigned int moscwtcr_bits)
+{
+    Reg8 moscwtcr { MOSCWTCR };
+    moscwtcr = moscwtcr_bits;
+}
+
+void enable_main_clock_oscillator(
+    unsigned int modrv0_bits,
+    unsigned int moscwtcr_bits)
+{
+    Reg8 momcr { MOMCR };
+    momcr = modrv0_bits | MOSEL_RESONATOR;
+    set_main_clock_wait_time(moscwtcr_bits);
+    // Start the oscillator
+    Reg8 mosccr { MOSCCR };
+    mosccr = 0;
+
+    // Wait for clock to become stable.
+    while (!main_clock_is_stable());
+}
+
+

@@ -28,68 +28,56 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "arm.hh"
-#include "Registers.hh"
+#include "main.hh"
 
 extern "C" {
-	void enable_interrupt(unsigned int interrupt)
+	void nmi()
 	{
-		Reg32 nvic_iser{ ARM_NVIC_ISER(interrupt / 32) };
-
-		interrupt %= 32;
-		nvic_iser |= (1 << interrupt);
+		return;
 	}
 
-	unsigned int get_interrupt_mask(unsigned int offset)
+	void hard_fault()
 	{
-		Reg32 nvic_iser{ ARM_NVIC_ISER(offset) };
-		return (unsigned int)nvic_iser;
+		return;
 	}
 
-	void set_interrupt_mask(unsigned int offset, unsigned int mask)
+	void mem_manage_fault()
 	{
-		Reg32 nvic_iser{ ARM_NVIC_ISER(offset) };
-		nvic_iser = mask;
+		while (1);
 	}
 
-	void disable_interrupt(unsigned int interrupt)
+	void bus_fault()
 	{
-		Reg32 nvic_icer{ ARM_NVIC_ICER(interrupt / 32) };
-
-		interrupt %= 32;
-		nvic_icer |= (1 << interrupt);
+		if (1 == 1)
+			while (1);
+	
+		return;
 	}
 
-	void set_interrupt_priority(unsigned int interrupt,
-				    unsigned char priority)
+	void usage_fault()
 	{
-		Reg32 nvic_ipr{ ARM_NVIC_IPR(interrupt / 4) };
-		interrupt %= 4;
-		nvic_ipr = (nvic_ipr & ~(0b11 << (8*interrupt + 6))) | ((priority & 0b11) << (8*interrupt + 6));
+		while (1);
+	
+		return;
 	}
 
-	void wait_n_systicks(unsigned int n)
+	void svcall()
 	{
-		Reg32 syst_rvr{ ARM_SYST_RVR };
-		syst_rvr = n & 0x00FFFFFF;
-		Reg32 syst_cvr{ ARM_SYST_CVR };
-		syst_cvr = 0;
-		Reg32 syst_csr{ ARM_SYST_CSR };
-		syst_csr = (1 << 2) | 1;
-		while ((syst_csr & (1 << 16)) == 0);
+		return;
 	}
 
-	unsigned int systick_get_tenms()
+	void pendsv()
 	{
-		Reg32 syst_calib{ ARM_SYST_CALIB };
-		return syst_calib & 0x00FFFFFF;
+		return;
 	}
 
-	void wait_n_10ms_periods(unsigned short n)
+	void systick()
 	{
-		unsigned int tenms{ systick_get_tenms() };
-		for (unsigned short i = 0; i < n; i++) {
-			wait_n_systicks(tenms);
-		}
+		return;
+	}
+
+	void unused_interrupt()
+	{
+		return;
 	}
 }

@@ -68,6 +68,18 @@ extern "C" {
 		nvic_ipr = (nvic_ipr & ~(0b11 << (8*interrupt + 6))) | ((priority & 0b11) << (8*interrupt + 6));
 	}
 
+	void systick_use_external_clock()
+	{
+		Reg32 syst_csr{ ARM_SYST_CSR };
+		syst_csr &= (1U << 2);
+	}
+
+	void systick_use_cpu_clock()
+	{
+		Reg32 syst_csr{ ARM_SYST_CSR };
+		syst_csr |= (1U << 2);
+	}
+	
 	void wait_n_systicks(unsigned int n)
 	{
 		Reg32 syst_rvr{ ARM_SYST_RVR };
@@ -75,7 +87,7 @@ extern "C" {
 		Reg32 syst_cvr{ ARM_SYST_CVR };
 		syst_cvr = 0;
 		Reg32 syst_csr{ ARM_SYST_CSR };
-		syst_csr = (1 << 2) | 1;
+		syst_csr = 1;
 		while ((syst_csr & (1 << 16)) == 0);
 	}
 

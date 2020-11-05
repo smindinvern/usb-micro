@@ -284,7 +284,7 @@ inline void ra6m1_sys_event_link_disable()
 #define IIC0WUPEN               (1U << 31)
 
 // Flash Memory
-#define RA6M1_FCACHE_BASE       (0x4001C000)
+#define RA6M1_FCACHE_BASE       (0x4001C000UL)
 #define FLWT                    (RA6M1_FCACHE_BASE + 0x11C)
 
 #define FLWT_ICLK_LT_40M        (0b000)
@@ -295,7 +295,7 @@ inline void ra6m1_sys_event_link_disable()
 
 // Automatically include these headers
 #include "ra6m1_clocks.hh"
-
+#include "ra6m1_ports.hh"
 
 
 #endif // RA6M1_HH_

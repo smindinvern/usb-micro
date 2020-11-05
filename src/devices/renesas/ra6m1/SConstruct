@@ -13,6 +13,7 @@ files = [ 'interrupt_table.s'
         , 'interrupt_handlers.cc'
 	, 'ra6m1_init.cc'
 	, 'ra6m1_clocks.cc'
+	, 'ra6m1_ports.cc'
 	, 'ra6m1_usb.cc'
 	]
 

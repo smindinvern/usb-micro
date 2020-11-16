@@ -200,4 +200,12 @@ inline void set_pin_output_level(
     }
 }
 
+inline bool get_pin_output_level(
+    const unsigned int port,
+    const unsigned int pin)
+{
+    Reg16 podr{ PODR(port) };
+    return (podr & (1U << pin)) == (1U << pin);
+}
+
 #endif // RA6M1_PORTS_HH_

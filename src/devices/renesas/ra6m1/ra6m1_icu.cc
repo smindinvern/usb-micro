@@ -37,7 +37,7 @@ inline void icu_link_event(
     bool dtc)
 {
     // 14.4.1
-    enable_interrupt(vector);
+    enable_interrupt(vector + IRQ0_VECTOR);
     Reg32 ielsr{ IELSR(vector) };
     ielsr = event | (dtc ? DTCE : 0);
 }
@@ -61,8 +61,8 @@ void icu_unlink_event(unsigned char vector)
     // 14.4.1
     Reg16 ielsr{ IELSR(vector) };
     ielsr = 0;
-    disable_interrupt(vector);
-    clear_interrupt(vector);
+    disable_interrupt(vector + IRQ0_VECTOR);
+    clear_interrupt(vector + IRQ0_VECTOR);
 }
 
 void icu_clear_interrupt(unsigned char vector)
@@ -75,7 +75,7 @@ void icu_clear_interrupt(unsigned char vector)
     ielsr &= ~DTCE;
     ielsr &= ~IELSR_IR;
     // Now clear NVIC interrupt pending flag
-    clear_interrupt(vector);
+    clear_interrupt(vector + IRQ0_VECTOR);
 }
 
 void icu_link_snooze_cancel_event(unsigned short event)

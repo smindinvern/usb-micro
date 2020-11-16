@@ -60,12 +60,25 @@ extern "C" {
 		nvic_icer |= (1 << interrupt);
 	}
 
+	void clear_interrupt(unsigned int interrupt)
+	{
+		Reg32 nvic_icpr{ ARM_NVIC_ICPR(interrupt / 32) };
+		interrupt %= 32;
+		nvic_icpr = (1U << interrupt);
+	}
+  
 	void set_interrupt_priority(unsigned int interrupt,
 				    unsigned char priority)
 	{
 		Reg32 nvic_ipr{ ARM_NVIC_IPR(interrupt / 4) };
 		interrupt %= 4;
-		nvic_ipr = (nvic_ipr & ~(0b11 << (8*interrupt + 6))) | ((priority & 0b11) << (8*interrupt + 6));
+		// bit-fields are 8 bits wide
+		unsigned int shift = 8U * interrupt;
+		// Clear this interrupt's priority field
+		unsigned int temp = nvic_ipr & ~(0xFF << shift);
+		// Set the new priority
+		temp |= priority << shift;
+		nvic_ipr = temp;
 	}
 
 	void systick_use_external_clock()

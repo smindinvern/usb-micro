@@ -31,10 +31,14 @@
 #ifndef ARM_HH_
 #define ARM_HH_
 
+#include "primitives.hh"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 	void enable_interrupt(unsigned int interrupt);
+	void disable_interrupt(unsigned int interrupt);
+	void clear_interrupt(unsigned int interrupt);
 	void set_interrupt_priority(unsigned int interrupt,
 				    unsigned char priority);
 	unsigned int get_interrupt_mask(unsigned int offset);

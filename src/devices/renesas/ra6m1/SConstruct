@@ -15,6 +15,7 @@ files = [ 'interrupt_table.s'
 	, 'ra6m1_clocks.cc'
 	, 'ra6m1_ports.cc'
 	, 'ra6m1_usb.cc'
+	, 'ra6m1_icu.cc'
 	]
 
 objs += [env.Object(x) for x in files]

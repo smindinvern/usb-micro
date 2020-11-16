@@ -50,15 +50,8 @@ void setup_main_clock(
     // 9.2.3: The clock sources should be switched when there are no occurring
     // internal asynchronous interrupts.
     // Ensure all interrupts are disabled before switching clock sources
-    unsigned int interrupt_mask[] = {
-	get_interrupt_mask(0),
-	get_interrupt_mask(1),
-	get_interrupt_mask(2)
-    };
-    set_interrupt_mask(0, 0);
-    set_interrupt_mask(1, 0);
-    set_interrupt_mask(2, 0);
-
+    mask_interrupts();
+  
     // 13.1: Register Write Protection is enabled by default for everything,
     // which includes clock generation circuit registers.
     set_registers_protect(false, true, true);
@@ -105,15 +98,12 @@ void setup_main_clock(
     Reg8 sckscr{ SCKSCR };
     sckscr = CKSEL_PLL;
     // LOCO sources the SysTick clock by default.  One tick is ~30us.
-    // Wait for 2 ticks just to make sure we get at least one *full* tick.
-    wait_n_systicks(2);
+    wait_n_systicks(1);
 
     set_registers_protect(true, true, true);
     
     // Restore interrupts
-    set_interrupt_mask(0, interrupt_mask[0]);
-    set_interrupt_mask(1, interrupt_mask[1]);
-    set_interrupt_mask(2, interrupt_mask[2]);
+    unmask_interrupts();
 }
 
 void init(

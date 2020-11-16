@@ -92,16 +92,80 @@ extern "C" {
 		Reg32 syst_csr{ ARM_SYST_CSR };
 		syst_csr |= (1U << 2);
 	}
+
+	void systick_set_count(unsigned int n)
+	{
+		// Cortex-M4 Devices Generic User Guide
+		// 4.4.2: SysTick Reload Value Register
+		Reg32 syst_rvr{ ARM_SYST_RVR };
+		syst_rvr = n & 0x00FFFFFF;
+	}
+
+	void systick_set_tickint(bool enabled)
+	{
+		// 4.4.1: SysTick Control and Status Register
+		Reg32 syst_csr{ ARM_SYST_CSR };
+		// Set/clear TICKINT flag
+		unsigned int tickint = ((enabled ? 1U : 0U) << 1);
+		unsigned int temp = syst_csr & ~(1U << 1);
+		syst_csr = temp | tickint;
+	}
+
+	void systick_enable_tickint()
+	{
+		systick_set_tickint(true);
+	}
+
+	void systick_disable_tickint()
+	{
+		systick_set_tickint(false);
+	}
+
+	void systick_set_enabled(bool enabled)
+	{
+		// 4.4.1: SysTick Control and Status Register
+		Reg32 syst_csr{ ARM_SYST_CSR };
+		// Set ENABLE flag to start counting.
+		if (enabled)
+		{
+			syst_csr |= 1U;
+		}
+		else {
+			syst_csr &= ~1U;
+		}
+	}
+	
+	void systick_start_counting()
+	{
+		systick_set_enabled(true);
+	}
+
+	void systick_stop_counting()
+	{
+		systick_set_enabled(false);
+	}
 	
 	void wait_n_systicks(unsigned int n)
 	{
-		Reg32 syst_rvr{ ARM_SYST_RVR };
-		syst_rvr = n & 0x00FFFFFF;
+		// Temporarily mask SysTick interrupt
+		unsigned int mask = get_interrupt_mask(0);
+		unsigned int mask_temp = mask & ~(1U << SYSTICK_VECTOR);
+		set_interrupt_mask(0, mask_temp);
+		systick_set_count(n);
+		// Cortex-M4 Devices Generic User Guide
+		// 4.4.3: SysTick Current Value Register
 		Reg32 syst_cvr{ ARM_SYST_CVR };
+		// Reset current value to 0.
 		syst_cvr = 0;
+		// 4.4.1: SysTick Control and Status Register
 		Reg32 syst_csr{ ARM_SYST_CSR };
-		syst_csr = 1;
+		systick_start_counting();
+		// Wait for COUNTFLAG to be set, indicating the counter has
+		// reached 0.
 		while ((syst_csr & (1 << 16)) == 0);
+		// Restore SysTick interrupt state.  If the interrupt is enabled,
+		// it will fire immediately.
+		set_interrupt_mask(0, mask);
 	}
 
 	unsigned int systick_get_tenms()

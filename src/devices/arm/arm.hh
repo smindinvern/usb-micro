@@ -43,6 +43,14 @@ extern "C" {
 				    unsigned char priority);
 	unsigned int get_interrupt_mask(unsigned int offset);
 	void set_interrupt_mask(unsigned int offset, unsigned int mask);
+
+	void systick_use_external_clock();
+	void systick_use_cpu_clock();
+	void systick_set_count(unsigned int count);
+	void systick_start_counting();
+	void systick_stop_counting();
+	void systick_enable_tickint();
+	void systick_disable_tickint();
 	void wait_n_systicks(unsigned int n);
 	unsigned int systick_get_tenms();
 	void wait_n_10ms_periods(unsigned short n);
@@ -100,5 +108,17 @@ extern "C" {
 #define ARM_NVIC_ISPR(n)   (ARM_NVIC_BASE + 0x0100UL + (4UL * (unsigned int)(n)))
 #define ARM_NVIC_ICPR(n)   (ARM_NVIC_BASE + 0x0180UL + (4UL * (unsigned int)(n)))
 #define ARM_NVIC_IPR(n)    (ARM_NVIC_BASE + 0x0300UL + (4UL * (unsigned int)(n)))
+
+// Vector table offsets
+#define RESET_VECTOR             (1U)
+#define NMI_VECTOR               (2U)
+#define HARD_FAULT_VECTOR        (3U)
+#define MEM_MANAGE_FAULT_VECTOR  (4U)
+#define BUS_FAULT_VECTOR         (5U)
+#define USAGE_FAULT_VECTOR       (6U)
+#define SVCALL_VECTOR            (7U)
+#define PENDSV_VECTOR            (14U)
+#define SYSTICK_VECTOR           (15U)
+#define IRQ0_VECTOR              (16U)
 
 #endif

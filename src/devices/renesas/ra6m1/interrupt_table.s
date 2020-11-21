@@ -36,6 +36,7 @@
 	.global svcall
 	.global pendsv
 	.global systick
+	.global usb_interrupt
 	.global unused_interrupt
 	.global start
 
@@ -57,7 +58,7 @@ interrupt_table:
 	.word	0
 	.word	pendsv + 1
 	.word	systick + 1
-	.word	unused_interrupt + 1
+	.word	usb_interrupt + 1
 	.word	unused_interrupt + 1
 	.word	unused_interrupt + 1
 	.word	unused_interrupt + 1

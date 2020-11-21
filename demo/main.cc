@@ -30,7 +30,7 @@
 
 #include "std.hh"
 #include "mm.hh"
-#include "samd_usb.hh"
+#include "ra6m1.hh"
 #include "usb.hh"
 #include "usbtmc.hh"
 #include "usbtmc488.hh"
@@ -54,74 +54,101 @@ extern "C" {
 	}
 }
 
-void init();
+void init(
+    unsigned int modrv0_bits,
+    unsigned int moscwtcr_bits,
+    unsigned int ick_div_bits,
+    unsigned int pcka_div_bits,
+    unsigned int pckb_div_bits,
+    unsigned int pckc_div_bits,
+    unsigned int pckd_div_bits,
+    unsigned int bck_div_bits,
+    unsigned int fck_div_bits,
+    unsigned int pli_div_bits,
+    unsigned int pll_mul_bits,
+    unsigned int flwt_bits);
 
 extern "C" {
 	void start()
 	{
-		unmask_interrupts();
-		volatile struct usb_status_info* usb_status{ getUSBStatusInfo() };
-		init();
+	    init(
+		modrv0_bits<16000000>(),      // oscillator drive bits
+		main_clock_wait_time<8163>(), // oscillator wait time
+		CLK_DIV(2),                   // ICLK divider
+		CLK_DIV(2),                   // PCLKA divider
+		CLK_DIV(4),                   // PCLKB divider
+		CLK_DIV(4),                   // PCLKC divider
+		CLK_DIV(2),                   // PCLKD divider
+		CLK_DIV(2),                   // BCLK divider
+		CLK_DIV(4),                   // FCLK divider
+		PLIDIV_1,                     // PLL divider
+		PLLMUL(15),                   // PLL multiplier
+		FLWT_ICLK_80M_TO_120M);       // flash wait cycles
+
+	    // Enable trace pins
+	    const unsigned int trace_id = 0b11010;
+	    pin_set_peripheral(2, 8, trace_id);
+	    pin_set_peripheral(2, 9, trace_id);
+	    pin_set_peripheral(2, 10, trace_id);
+	    pin_set_peripheral(2, 11, trace_id);
+	    pin_set_peripheral(2, 14, trace_id);
+	    
+	    unmask_interrupts();
+	    volatile struct usb_status_info* usb_status{ getUSBStatusInfo() };
 
 #define MAX_PACKET_SIZE (64U)
 #define VENDOR_ID (0U)
 #define PRODUCT_ID (0U)
 #define BCD_DEVICE_VERSION (0x0100)
 
-		const USBTMCDeviceDescriptor device_descriptor = {
-			MAX_PACKET_SIZE,
-			VENDOR_ID,
-			PRODUCT_ID,
-			BCD_DEVICE_VERSION,
-			4, // iManufacturer
-			2, // iProduct
-			3, // iSerialNumber
-			1  // 1 configuration
-		};
+	    const USBTMCDeviceDescriptor device_descriptor = {
+		MAX_PACKET_SIZE,
+		VENDOR_ID,
+		PRODUCT_ID,
+		BCD_DEVICE_VERSION,
+		4, // iManufacturer
+		2, // iProduct
+		3, // iSerialNumber
+		1  // 1 configuration
+	    };
 
-		samd_usb_init_usb();
-		samd_usb_enable();
-		samd21_ep_desc* descs = new(std::nothrow) samd21_ep_desc[3];
-		Reg32 descadd{ USB_DESCADD };
-		descadd = reinterpret_cast<unsigned int>(descs);
+	    ra6m1_usb_init_usb();
 
-		USBDeviceFactory cstr = {
-			[&](auto&& fact) -> auto
-			{
-				USBDevice dev{ SAMDUSBControlEndpoint{ 0, 64, descs },
-							   device_descriptor, std::move(fact),
-							   new(std::nothrow) USBDeviceGenericImpl() };
-				return dev;
-			}
-		};
-		Invokable<std::exclusive_ptr<USBInEndpoint>()> get_in_ep = {
-			[&]() -> auto
-			{
-				return std::exclusive_ptr<USBInEndpoint>(new(std::nothrow) SAMDUSBInEndpoint{ 2, USBEndpoint::bulk_ep, 64, descs });
-			}
-		};
-		Invokable<std::exclusive_ptr<USBOutEndpoint>()> get_out_ep = {
-			[&]() -> auto
-			{
-				return std::exclusive_ptr<USBOutEndpoint>(new(std::nothrow) SAMDUSBOutEndpoint{ 1, USBEndpoint::bulk_ep, 64, descs });
-			}
-		};
+	    USBDeviceFactory cstr = {
+		[&](auto&& fact) -> auto
+		    {
+			USBDevice dev{ RA6M1USBControlEndpoint{ 64 },
+			    device_descriptor, std::move(fact),
+			    new(std::nothrow) USBDeviceGenericImpl() };
+			return dev;
+		    }
+	    };
+	    Invokable<std::exclusive_ptr<USBInEndpoint>()> get_in_ep = {
+		[&]() -> auto
+		    {
+			return std::exclusive_ptr<USBInEndpoint>(new(std::nothrow) RA6M1USBInEndpoint{ 2, 2, USBEndpoint::bulk_ep, 64, 0 });
+		    }
+	    };
+	    Invokable<std::exclusive_ptr<USBOutEndpoint>()> get_out_ep = {
+		[&]() -> auto
+		    {
+			return std::exclusive_ptr<USBOutEndpoint>(new(std::nothrow) RA6M1USBOutEndpoint{ 1, 1, USBEndpoint::bulk_ep, 64, 0 });
+		    }
+	    };
 
-		const wchar_t* manufacturer_name{ L"Touch Technologies" };
-		const wchar_t* product_name{ L"USB Toucher" };
-		const wchar_t* serial_number{ L"1337" };
-		USBTMCDevice tmc_dev = create_usbtmc488_device(manufacturer_name, product_name,
-													   serial_number, cstr, get_out_ep,
-													   get_in_ep);
-		usb_status->device = &tmc_dev;
-		// Configure and enable USB peripheral interrupts.
-		set_interrupt_priority(7, 2);
-		enable_interrupt(7);
+	    const wchar_t* manufacturer_name{ L"Touch Technologies" };
+	    const wchar_t* product_name{ L"USB Toucher" };
+	    const wchar_t* serial_number{ L"1337" };
+	    USBTMCDevice tmc_dev = create_usbtmc488_device(manufacturer_name, product_name,
+							   serial_number, cstr, get_out_ep,
+							   get_in_ep);
+	    usb_status->device = &tmc_dev;
+	    ra6m1_usb_enable();
 
-		while (1) {
-			if (usb_status->configured == 1) {
-				do_wfi();
-			}
+	    while (1) {
+		if (usb_status->configured == 1) {
+		    ra6m1_wfi();
 		}
+	    }
 	}
 }

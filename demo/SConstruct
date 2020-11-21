@@ -7,7 +7,7 @@ env.Append(CPPDEFINES=[('STACK_SIZE', '0x1000')])
 features=['usb', 'usbtmc', 'usbtmc488']
 Export('features')
 Export('env')
-objs = env.SConscript('../src/devices/atmel/samd/atsamd21j18a.SConscript')
+objs = env.SConscript('../src/devices/renesas/ra6m1/SConstruct')
 objs += env.SConscript('../src/SConscript')
 objs += [env.Object('main.cc')]
 env.Program('USBTMC488Demo.elf', objs)

@@ -81,3 +81,27 @@ USBTMC488Capabilities interface_capabilities = {
 	false, // rl1Capable
 	false  // dt1Capable
 };
+
+USBTMCDevice create_usbtmc488_device(
+    const wchar_t* manufacturer_name,
+    const wchar_t* product_name,
+    const wchar_t* serial_number,
+    const USBDeviceFactory& cstr,
+    const Invokable<std::exclusive_ptr<USBOutEndpoint>()>& get_out_ep,
+    const Invokable<std::exclusive_ptr<USBInEndpoint>()>& get_in_ep)
+{
+    USBTMCInterface::out_msg_handler out_handler{ usbtmc488_dev_dep_out_handler };
+    USBTMCInterface::in_msg_handler in_handler{ usbtmc488_dev_dep_in_handler };
+    return create_usbtmc_device(
+	manufacturer_name,
+	product_name,
+	serial_number,
+	USBTMC_USB488_interface,
+	reinterpret_cast<USBTMCCapabilities*>(&interface_capabilities),
+	cstr,
+	get_out_ep,
+	get_in_ep,
+	out_handler,
+	in_handler);
+}
+    

@@ -112,6 +112,7 @@ inline void set_registers_protect(bool cgc, bool lpm, bool lvd)
 #include "ra6m1_clocks.hh"
 #include "ra6m1_ports.hh"
 #include "ra6m1_icu.hh"
+#include "ra6m1_usb.hh"
 
 #endif // RA6M1_HH_
 

@@ -28,9 +28,13 @@ public:
 		return *this;
 	}
 
-	operator T()
+	T operator*()
 	{
 		return *reg;
+	}
+	operator T()
+	{
+	        return this->operator*();
 	}
 };
 

@@ -473,22 +473,22 @@ USBTMCDevice create_usbtmc_device(const wchar_t* manufacturer_name,
 				  const wchar_t* serial_number,
 				  const USBTMC_bInterfaceProtocol protocol,
 				  USBTMCCapabilities* capabilities,
-				  const USBDeviceFactory& cstr,
-				  const Invokable<std::exclusive_ptr<USBOutEndpoint>()>& get_out_ep,
-				  const Invokable<std::exclusive_ptr<USBInEndpoint>()>& get_in_ep,
-				  USBTMCInterface::out_msg_handler& out_handler,
-				  USBTMCInterface::in_msg_handler& in_handler)
+				  const USBDeviceFactory* cstr,
+				  const Invokable<std::exclusive_ptr<USBOutEndpoint>()>* get_out_ep,
+				  const Invokable<std::exclusive_ptr<USBInEndpoint>()>* get_in_ep,
+				  USBTMCInterface::out_msg_handler* out_handler,
+				  USBTMCInterface::in_msg_handler* in_handler)
 {
 	USBConfigurationFactory configFactory =
-		[&](unsigned char n) -> USBConfiguration*
+		[=](unsigned char n) -> USBConfiguration*
 		{
 			if (n != 1) {
 				return nullptr;
 			}
 			USBConfiguration* new_config =
-			new(std::nothrow) USBConfiguration(n);
+			    new(std::nothrow) USBConfiguration(n);
 			if (!new_config) {
-				return nullptr;
+			    return nullptr;
 			}
 
 			// Construct the USBTMC interface.
@@ -497,20 +497,20 @@ USBTMCDevice create_usbtmc_device(const wchar_t* manufacturer_name,
 			USBTMCInterface* iface =
 			    new(std::nothrow) USBTMCInterface(protocol,
 							      capabilities,
-							      get_out_ep(),
-							      get_in_ep());
+							      (*get_out_ep)(),
+							      (*get_in_ep)());
 			if (!iface) {
-				delete new_config;
-				return nullptr;
+			    delete new_config;
+			    return nullptr;
 			}
 
-			iface->addDevDepMsgOutHandler(out_handler);
-			iface->addDevDepMsgInReqHandler(in_handler);
+			iface->addDevDepMsgOutHandler(*out_handler);
+			iface->addDevDepMsgInReqHandler(*in_handler);
 
 			new_config->interfaces.push_back(iface);
 			return new_config;
 		};
-	USBTMCDevice tmc_dev{ cstr(std::move(configFactory)) };
+	USBTMCDevice tmc_dev{ (*cstr)(std::move(configFactory)) };
 
 	usbtmc_setup_request_handler* handler =
 		new(std::nothrow) usbtmc_setup_request_handler{ manufacturer_name,

@@ -86,12 +86,14 @@ USBTMCDevice create_usbtmc488_device(
     const wchar_t* manufacturer_name,
     const wchar_t* product_name,
     const wchar_t* serial_number,
-    const USBDeviceFactory& cstr,
-    const Invokable<std::exclusive_ptr<USBOutEndpoint>()>& get_out_ep,
-    const Invokable<std::exclusive_ptr<USBInEndpoint>()>& get_in_ep)
+    const USBDeviceFactory* cstr,
+    const Invokable<std::exclusive_ptr<USBOutEndpoint>()>* get_out_ep,
+    const Invokable<std::exclusive_ptr<USBInEndpoint>()>* get_in_ep)
 {
-    USBTMCInterface::out_msg_handler out_handler{ usbtmc488_dev_dep_out_handler };
-    USBTMCInterface::in_msg_handler in_handler{ usbtmc488_dev_dep_in_handler };
+    USBTMCInterface::out_msg_handler* out_handler =
+	new(std::nothrow) USBTMCInterface::out_msg_handler{ usbtmc488_dev_dep_out_handler };
+    USBTMCInterface::in_msg_handler* in_handler =
+	new(std::nothrow) USBTMCInterface::in_msg_handler{ usbtmc488_dev_dep_in_handler };
     return create_usbtmc_device(
 	manufacturer_name,
 	product_name,

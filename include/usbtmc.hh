@@ -575,10 +575,10 @@ USBTMCDevice create_usbtmc_device(const wchar_t* manufacturer_name,
 				  const wchar_t* serial_number,
 				  const USBTMC_bInterfaceProtocol protocol,
 				  USBTMCCapabilities* capabilities,
-				  const USBDeviceFactory& cstr,
-				  const Invokable<std::exclusive_ptr<USBOutEndpoint>()>& get_out_ep,
-				  const Invokable<std::exclusive_ptr<USBInEndpoint>()>& get_in_ep,
-				  USBTMCInterface::out_msg_handler& out_handler,
-				  USBTMCInterface::in_msg_handler& in_handler);
+				  const USBDeviceFactory* cstr,
+				  const Invokable<std::exclusive_ptr<USBOutEndpoint>()>* get_out_ep,
+				  const Invokable<std::exclusive_ptr<USBInEndpoint>()>* get_in_ep,
+				  USBTMCInterface::out_msg_handler* out_handler,
+				  USBTMCInterface::in_msg_handler* in_handler);
 
 #endif  // USBTMC_HH_

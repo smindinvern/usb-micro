@@ -394,11 +394,20 @@ void ra6m1_usb_control_transfer(unsigned char transfer_stage)
 	    while (1);
 	}
 	break;
+    case ControlWriteDataStage:
+    case ControlWriteNoDataStatusStage:
+	if (flags & USBFS_INTSTS0_VALID)
+	{
+	    usb_setup_token(0);
+	}
+	else
+	{
+	    while (1);
+	}
+	break;
     case IdleOrSetupStage:
     case ControlReadStatusStage:
-    case ControlWriteDataStage:
     case ControlWriteStatusStage:
-    case ControlWriteNoDataStatusStage:
     case ControlTransferSequenceError:
     default:
 	break;

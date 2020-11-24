@@ -527,8 +527,6 @@ int (USBSetupRequestHandler::* const usb_functions[13])(USBDevice&, char*) = {
 
 int USBDevice::process_setup_transaction(char* buffer, unsigned int size)
 {
-	// here, or on success?
-	ep0.complete_setup();
 	USBStandardDeviceRequest req{ buffer };
 	const unsigned char& bmRequestType{ req.bmRequestType() };
 	

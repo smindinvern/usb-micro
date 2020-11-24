@@ -100,7 +100,6 @@ struct USBEndpointImpl
 	virtual int send_data(const char*, unsigned int, bool) = 0;
 	virtual char* read_data(unsigned int&) = 0;
 	virtual char* read_setup(unsigned int&) = 0;
-        virtual void complete_setup() = 0;
 	virtual ~USBEndpointImpl() = default;
 };
 
@@ -154,7 +153,6 @@ public:
 	void reset() { return (impl->reset)(); }
 	void stall() { return (impl->stall)();	}
 	void unstall() { return (impl->unstall)(); }
-        void complete_setup() { return (impl->complete_setup)(); }
 	
 	// notifiers for in/out/setup tokens?
 

@@ -33,39 +33,6 @@
 #include "Invokable.hh"
 #include "String.h"
 
-char idn_string[] = "Touch Technologies,USB Toucher,0,0\n";
-
-int usbtmc488_dev_dep_out_handler(unsigned char MsgID,
-				  unsigned char bTag,
-				  unsigned int transferSize,
-				  char* msgBytes)
-{
-	// Handle device-dependent messages sent from host here.
-	// Return 0 to indicate no error.
-	return 0;
-}
-
-int usbtmc488_dev_dep_in_handler(USBInEndpoint& in_ep,
-				 unsigned char MsgId,
-				 unsigned char bTag,
-				 unsigned int transferSize,
-				 bool useTermChar,
-				 char termChar)
-{
-	// Handle device-dependent request messages sent from host here.
-	unsigned int size = (transferSize > sizeof(idn_string))
-		? sizeof(idn_string)
-		: transferSize;
-	USBTMCDevDepMsgIn msg{ bTag, size, useTermChar, true };
-	char* packet = new(std::nothrow) char[size + USBTMCDevDepMsgIn::size()];
-	msg.copyTo(packet, USBTMCDevDepMsgIn::size());
-	memcpy(packet + USBTMCDevDepMsgIn::size(), idn_string, sizeof(idn_string));
-	in_ep.sendData(packet, size + USBTMCDevDepMsgIn::size());
-	delete[] packet;
-	// Return 0 to indicate no error.
-	return 0;
-}
-
 USBTMC488Capabilities interface_capabilities = {
 	{
 		false,
@@ -88,12 +55,10 @@ USBTMCDevice create_usbtmc488_device(
     const wchar_t* serial_number,
     const USBDeviceFactory* cstr,
     const Invokable<std::exclusive_ptr<USBOutEndpoint>()>* get_out_ep,
-    const Invokable<std::exclusive_ptr<USBInEndpoint>()>* get_in_ep)
+    const Invokable<std::exclusive_ptr<USBInEndpoint>()>* get_in_ep,
+    const USBTMCInterface::out_msg_handler* out_handler,
+    const USBTMCInterface::in_msg_handler* in_handler)
 {
-    USBTMCInterface::out_msg_handler* out_handler =
-	new(std::nothrow) USBTMCInterface::out_msg_handler{ usbtmc488_dev_dep_out_handler };
-    USBTMCInterface::in_msg_handler* in_handler =
-	new(std::nothrow) USBTMCInterface::in_msg_handler{ usbtmc488_dev_dep_in_handler };
     return create_usbtmc_device(
 	manufacturer_name,
 	product_name,

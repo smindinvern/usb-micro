@@ -92,7 +92,7 @@ int USBTMCInterface::bulk_out_request_handler(USBControlEndpoint* ep0, char* byt
 }
 	
 USBTMCInterface::USBTMCInterface(USBTMC_bInterfaceProtocol bInterfaceProtocol,
-				 USBTMCCapabilities* interface_capabilities, /* HACK */
+				 const USBTMCCapabilities* interface_capabilities, /* HACK */
 				 std::exclusive_ptr<USBOutEndpoint>&& bulk_out_ep,
 				 std::exclusive_ptr<USBInEndpoint>&& bulk_in_ep)
 	: USBInterface{ 0xfe, 0x03, (unsigned char)bInterfaceProtocol },
@@ -130,7 +130,7 @@ int USBTMCInterface::class_request_handler(USBControlEndpoint* ep0, char* bytes)
 		unsigned int response_size;
 		if (bInterfaceProtocol == USBTMC_USB488_interface) {
 			/* HACK */
-			USBTMC488Capabilities* caps = reinterpret_cast<USBTMC488Capabilities*>(capabilities);
+			const USBTMC488Capabilities* caps = reinterpret_cast<const USBTMC488Capabilities*>(capabilities);
 			USBTMC488GetCapabilitiesResponse response = {
 				STATUS_SUCCESS,
 				0x0100,
@@ -472,12 +472,12 @@ USBTMCDevice create_usbtmc_device(const wchar_t* manufacturer_name,
 				  const wchar_t* product_name,
 				  const wchar_t* serial_number,
 				  const USBTMC_bInterfaceProtocol protocol,
-				  USBTMCCapabilities* capabilities,
+				  const USBTMCCapabilities* capabilities,
 				  const USBDeviceFactory* cstr,
 				  const Invokable<std::exclusive_ptr<USBOutEndpoint>()>* get_out_ep,
 				  const Invokable<std::exclusive_ptr<USBInEndpoint>()>* get_in_ep,
-				  USBTMCInterface::out_msg_handler* out_handler,
-				  USBTMCInterface::in_msg_handler* in_handler)
+				  const USBTMCInterface::out_msg_handler* out_handler,
+				  const USBTMCInterface::in_msg_handler* in_handler)
 {
 	USBConfigurationFactory configFactory =
 		[=](unsigned char n) -> USBConfiguration*

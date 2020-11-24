@@ -126,6 +126,8 @@ USBTMCDevice create_usbtmc488_device(
     const wchar_t* serial_number,
     const USBDeviceFactory* cstr,
     const Invokable<std::exclusive_ptr<USBOutEndpoint>()>* get_out_ep,
-    const Invokable<std::exclusive_ptr<USBInEndpoint>()>* get_in_ep);
+    const Invokable<std::exclusive_ptr<USBInEndpoint>()>* get_in_ep,
+    const USBTMCInterface::out_msg_handler* out_handler,
+    const USBTMCInterface::in_msg_handler* in_handler);
 
 #endif // USBTMC_488_HH_

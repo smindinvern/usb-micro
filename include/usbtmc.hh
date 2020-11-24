@@ -394,7 +394,7 @@ class USBTMCInterface : public USBInterface
 	USBTMCInEndpoint* bulk_in{};
 	USBInEndpoint* interrupt_in{};  /* optional */
 
-	USBTMCCapabilities* capabilities;
+	const USBTMCCapabilities* capabilities;
 	USBTMCBulkOutState out_state;
   
 	static bool append_transfer_to_message(InProgressTransfer& t, InProgressTransfer& m);
@@ -423,15 +423,15 @@ public:
 	int handle_vendor_specific_in(char* packet_data, unsigned int bytes);
 	
 	USBTMCInterface(USBTMC_bInterfaceProtocol bInterfaceProtocol,
-			USBTMCCapabilities* interface_capabilities, /* HACK */
+			const USBTMCCapabilities* interface_capabilities, /* HACK */
 			std::exclusive_ptr<USBOutEndpoint>&& bulk_out_ep,
 			std::exclusive_ptr<USBInEndpoint>&& bulk_in_ep);
 
-	void addDevDepMsgOutHandler(out_msg_handler& handler)
+	void addDevDepMsgOutHandler(const out_msg_handler& handler)
 	{
 		dev_dep_msg_out_handler = &handler;
 	}
-	void addDevDepMsgInReqHandler(in_msg_handler& handler)
+	void addDevDepMsgInReqHandler(const in_msg_handler& handler)
 	{
 		dev_dep_msg_in_req_handler = &handler;
 	}
@@ -439,8 +439,8 @@ public:
 	// publicly visible records for e.g. USBTMCDevice to manage some things for us
 	unsigned char bulkIn_bTag{};
 private:
-	out_msg_handler* dev_dep_msg_out_handler;
-	in_msg_handler* dev_dep_msg_in_req_handler;
+	const out_msg_handler* dev_dep_msg_out_handler;
+	const in_msg_handler* dev_dep_msg_in_req_handler;
 };
 
 class USBTMCDevice : public USBDevice
@@ -574,11 +574,11 @@ USBTMCDevice create_usbtmc_device(const wchar_t* manufacturer_name,
 				  const wchar_t* product_name,
 				  const wchar_t* serial_number,
 				  const USBTMC_bInterfaceProtocol protocol,
-				  USBTMCCapabilities* capabilities,
+				  const USBTMCCapabilities* capabilities,
 				  const USBDeviceFactory* cstr,
 				  const Invokable<std::exclusive_ptr<USBOutEndpoint>()>* get_out_ep,
 				  const Invokable<std::exclusive_ptr<USBInEndpoint>()>* get_in_ep,
-				  USBTMCInterface::out_msg_handler* out_handler,
-				  USBTMCInterface::in_msg_handler* in_handler);
+				  const USBTMCInterface::out_msg_handler* out_handler,
+				  const USBTMCInterface::in_msg_handler* in_handler);
 
 #endif  // USBTMC_HH_

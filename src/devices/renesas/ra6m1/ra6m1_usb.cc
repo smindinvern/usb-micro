@@ -369,6 +369,8 @@ void ra6m1_usb_configure_pipe(
 	brdyenb |= (1U << pipe_number);
 	bempenb &= (unsigned short)~(1U << pipe_number);
     }
+    // set PID to BUF to enable pipe.
+    ra6m1_usb_set_pipe_pid(pipe_number, UsbPid::BUF);
 }
 
 bool ra6m1_usb_pipe_buffer_ready(unsigned char pipe_number)
@@ -387,11 +389,12 @@ void ra6m1_usb_control_transfer(unsigned char transfer_stage)
     case ControlReadDataStage:
 	if (flags & USBFS_INTSTS0_VALID)
 	{
-	    usb_setup_token(0);
-	}
-	else
-	{
-	    while (1);
+	    if (usb_setup_token(0) >= 0)
+	    {
+		Reg16 dcpctr{ USBFS_DCPCTR };
+		ra6m1_usb_set_dcp_pid(UsbPid::BUF);
+		dcpctr |= USBFS_DCPCTR_CCPL;
+	    }
 	}
 	break;
     case ControlWriteDataStage:
@@ -399,10 +402,6 @@ void ra6m1_usb_control_transfer(unsigned char transfer_stage)
 	if (flags & USBFS_INTSTS0_VALID)
 	{
 	    usb_setup_token(0);
-	}
-	else
-	{
-	    while (1);
 	}
 	break;
     case IdleOrSetupStage:

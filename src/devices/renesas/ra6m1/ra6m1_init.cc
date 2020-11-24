@@ -45,7 +45,8 @@ void setup_main_clock(
     unsigned int fck_div_bits,
     unsigned int pli_div_bits,
     unsigned int pll_mul_bits,
-    unsigned int flwt_bits)
+    unsigned int flwt_bits,
+    unsigned int sramwtsc_bits)
 {
     // 9.2.3: The clock sources should be switched when there are no occurring
     // internal asynchronous interrupts.
@@ -92,6 +93,20 @@ void setup_main_clock(
     //              0b010: 2 waits (80MHz < ICLK <= 120MHz)
     Reg8 flwt{ FLWT };
     flwt = flwt_bits;
+    // 48.4.1:
+    // Set the number of SRAM wait cycles in the SRAMWTSC register based on the
+    // following:
+    // - SRAM0
+    //   1 wait: 60MHz < ICLK <= 120MHz
+    //   No wait: ICLK <= 60MHz
+    // Unlock SRAMWTSC register
+    Reg8 sramprcr{ 0x40002004U };
+    sramprcr = (0x78U << 1) | 1U;
+    Reg8 sramwtsc{ 0x40002008U };
+    sramwtsc = (sramwtsc_bits << 1);
+    // Lock SRAMWTSC register
+    sramprcr = 0;
+
     // Switch system clock source to PLL
     // 9.2.3: When switching from non-PLL to PLL source, wait at least 250ns after
     // changing the value before starting subsequent processing.
@@ -118,7 +133,8 @@ void init(
     unsigned int fck_div_bits,
     unsigned int pli_div_bits,
     unsigned int pll_mul_bits,
-    unsigned int flwt_bits)
+    unsigned int flwt_bits,
+    unsigned int sramwtc_bits)
 {
     setup_main_clock(
 	modrv0_bits,
@@ -132,7 +148,8 @@ void init(
 	fck_div_bits,
 	pli_div_bits,
 	pll_mul_bits,
-        flwt_bits);
+        flwt_bits,
+	sramwtc_bits);
     init_mm();
 
     // init_usb();

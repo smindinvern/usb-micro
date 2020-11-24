@@ -313,6 +313,11 @@ int USBDevice::DefaultSetupRequestHandler::usb_get_descriptor(USBDevice& device,
 		
 		break;
 	}
+	case DEVICE_QUALIFIER:
+	        // USB 2.0, 9.6.2:
+		// If a full-speed only device (with a device descriptor version number equal to 0200H) receives a
+                // GetDescriptor() request for a device_qualifier, it must respond with a request error.
+	        return -1;
 	default:
 		return false;
 	}

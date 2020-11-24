@@ -184,7 +184,7 @@ struct USBDeviceDescriptor : public USBRawDeviceDescriptor
 			    unsigned char iProduct,
 			    unsigned char iSerialNumber,
 			    unsigned char bNumConfigurations)
-		: USBDescriptor({	0x110,
+                : USBDescriptor({	0x200,
 					bDeviceClass,
 					bDeviceSubClass,
 					bDeviceProtocol,

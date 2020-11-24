@@ -1575,7 +1575,7 @@ public:
 	ra6m1_usb_set_pipe_pid(pipe_num, UsbPid::NAK);
     }
 
-    void complete_setup()
+    virtual void complete_setup(unsigned char bmRequestType)
     {
 	Reg16 dcpctr{ USBFS_DCPCTR };
 	ra6m1_usb_set_dcp_pid(UsbPid::BUF);
@@ -1601,20 +1601,7 @@ public:
 	}
 	else
 	{
-	    using namespace UsbControlTransferStage;
-	    unsigned int stage = ra6m1_usb_get_control_transfer_stage();
-	    if (pipe_num == 0 && (stage == ControlWriteDataStage || stage == ControlWriteNoDataStatusStage))
-	    {
-		complete_setup();
-	    }
-	    else
-	    {
-		ra6m1_usb_cfifo_write_zlp(pipe_num);
-	    }
-	}
-	if (pipe_num == 0)
-	{
-	    //complete_setup();
+	    ra6m1_usb_cfifo_write_zlp(pipe_num);
 	}
 	if (wait)
 	{

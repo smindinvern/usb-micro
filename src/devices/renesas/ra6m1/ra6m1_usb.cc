@@ -389,12 +389,7 @@ void ra6m1_usb_control_transfer(unsigned char transfer_stage)
     case ControlReadDataStage:
 	if (flags & USBFS_INTSTS0_VALID)
 	{
-	    if (usb_setup_token(0) >= 0)
-	    {
-		Reg16 dcpctr{ USBFS_DCPCTR };
-		ra6m1_usb_set_dcp_pid(UsbPid::BUF);
-		dcpctr |= USBFS_DCPCTR_CCPL;
-	    }
+	    usb_setup_token(0);
 	}
 	break;
     case ControlWriteDataStage:

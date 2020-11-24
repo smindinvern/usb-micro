@@ -117,7 +117,6 @@ int USBEndpoint::endpointRequest(USBControlEndpoint* ep0, char* request)
 			else {
 				unstall();
 			}
-			ep0->sendZLP();
 			return true;
 		default:
 			return -1;
@@ -193,7 +192,7 @@ int USBDevice::DefaultSetupRequestHandler::usb_set_address(USBDevice& device, ch
 
 	if (address == 0) {
 		usb_status->state = DEFAULT_STATE;
-		device.ep0.sendZLP();
+		device.ep0.complete_setup(request.bmRequestType());
 		device.setAddress(0);
 		// ordering dependency here with above functions needing address != 0?
 		usb_status->address = 0;
@@ -204,7 +203,7 @@ int USBDevice::DefaultSetupRequestHandler::usb_set_address(USBDevice& device, ch
 	usb_status->state = ADDRESS_STATE;
 
 	/* make sure that we WAIT for ZLP to be sent before changing address */
-	device.ep0.sendZLP();
+	device.ep0.complete_setup(request.bmRequestType());
 
 	device.setAddress(address);
 
@@ -394,7 +393,6 @@ int USBDevice::DefaultSetupRequestHandler::usb_set_configuration(USBDevice& devi
 	if (usb_status->state == CONFIGURED_STATE) {
 		device.setConfigured(true);
 	}
-	device.ep0.sendZLP();
 	usb_status->configured = 1;
 
 	return true;
@@ -549,6 +547,9 @@ int USBDevice::process_setup_transaction(char* buffer, unsigned int size)
 		if (status < 0) {
 			ep0.stall();
 		}
+		else {
+			ep0.complete_setup(bmRequestType);
+		}
 		return status;
 	}
 	case 2:  // Endpoint
@@ -561,6 +562,9 @@ int USBDevice::process_setup_transaction(char* buffer, unsigned int size)
 		int status{ ep->endpointRequest(&ep0, buffer) };
 		if (status < 0) {
 			ep0.stall();
+		}
+		else {
+			ep0.complete_setup(bmRequestType);
 		}
 		return status;
 	}
@@ -602,6 +606,11 @@ int USBDevice::process_setup_transaction(char* buffer, unsigned int size)
 		break;
 	default:
 		goto error;
+	}
+	if (bRequest != SET_ADDRESS) {
+		// SET_ADDRESS is handled specially.  The ZLP needs to be sent *before*
+		// the address is changed.
+		ep0.complete_setup(bmRequestType);
 	}
 	return 0;
 error:

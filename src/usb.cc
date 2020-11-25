@@ -44,43 +44,6 @@ enum {
 	SUSPENDED_STATE
 };
 
-int USBEndpoint::sendData(const char* data, unsigned int length, bool buffered)
-{
-	volatile struct usb_status_info* usb_status{ getUSBStatusInfo() };
-	// FIXME: buffering does not currently work
-	/* ZLP fast-path */
-	if (length == 0) {
-		return send_data(data, 0, buffered);
-	}
-	for (unsigned int size = 0; size < length; size += max_packet_size) {
-		unsigned int tx_size{ (length - size > max_packet_size) ? max_packet_size : (length - size) };
-		int status{ send_data(data + size, tx_size, buffered) };
-		if (status < 0) {
-			return status;
-		}
-		usb_status->eps[ep_number].total_bytes -= tx_size;
-	}
-	
-	return 0;
-}
-
-int USBEndpoint::sendZLP(bool wait)
-{
-	char dummy;
-	// FIXME: wait == 0 currently not supported
-	return sendData(&dummy, 0, !wait);
-}
-
-char* USBEndpoint::receiveData(unsigned int& length)
-{
-	return read_data(length);
-}
-
-char* USBEndpoint::receiveSetup(unsigned int& length)
-{
-	return read_setup(length);
-}
-
 int USBEndpoint::endpointRequest(USBControlEndpoint* ep0, char* request)
 {
 	USBStandardDeviceRequest req{ request };
@@ -96,13 +59,19 @@ int USBEndpoint::endpointRequest(USBControlEndpoint* ep0, char* request)
 		switch (req.bRequest()) {
 		case 0:  // GET_STATUS
 		{
-			// For an endpoint, the GET_STATUS response reports
-			// a single status bit:
-			// D15..D1: Reserved
-			// D0: Halt
-			char response[2] = { 0, stalled ? 1 : 0 };
-			ep0->sendData(response, 2, false);
-			return true;
+		    // For an endpoint, the GET_STATUS response reports
+		    // a single status bit:
+		    // D15..D1: Reserved
+		    // D0: Halt
+		    char* response = new(std::nothrow) char[2];
+		    if (response == nullptr)
+		    {
+			return -1;
+		    }
+		    response[0] = 0;
+		    response[1] = stalled ? 1 : 0;
+		    ep0->queue_response(req.wLength(), response, 2);
+		    return true;
 		}
 		case 1:  // CLEAR_FEATURE
 		case 3:  // SET_FEATURE
@@ -136,9 +105,6 @@ int USBEndpoint::endpointRequest(USBControlEndpoint* ep0, char* request)
 	}
 }
 
-
-
-
 USBDevice::USBDevice(USBControlEndpoint ep0_, USBDeviceDescriptor descriptor,
 					 Invokable<USBConfiguration*(unsigned char)> configurationFactory,
 					 USBDeviceImpl* privImpl)
@@ -164,8 +130,14 @@ void USBDevice::reset() {
 
 int USBDevice::DefaultSetupRequestHandler::get_status(USBDevice& device, char*)
 {
-	unsigned short status{};
-	return !device.ep0.sendData(reinterpret_cast<char*>(&status), sizeof(status)) ? true : -1;
+    unsigned short* status = new(std::nothrow) unsigned short[1];
+    if (status == nullptr)
+    {
+	return -1;
+    }
+    status[0] = 0;
+    device.ep0.queue_data(reinterpret_cast<char*>(status), sizeof(*status));
+    return true;
 }
 
 int USBDevice::DefaultSetupRequestHandler::usb_clear_feature(USBDevice&, char*)
@@ -192,7 +164,7 @@ int USBDevice::DefaultSetupRequestHandler::usb_set_address(USBDevice& device, ch
 
 	if (address == 0) {
 		usb_status->state = DEFAULT_STATE;
-		device.ep0.complete_setup(request.bmRequestType());
+		device.ep0.complete_setup(request);
 		device.setAddress(0);
 		// ordering dependency here with above functions needing address != 0?
 		usb_status->address = 0;
@@ -203,7 +175,7 @@ int USBDevice::DefaultSetupRequestHandler::usb_set_address(USBDevice& device, ch
 	usb_status->state = ADDRESS_STATE;
 
 	/* make sure that we WAIT for ZLP to be sent before changing address */
-	device.ep0.complete_setup(request.bmRequestType());
+	device.ep0.complete_setup(request);
 
 	device.setAddress(address);
 
@@ -228,9 +200,13 @@ int USBDevice::DefaultSetupRequestHandler::usb_get_descriptor(USBDevice& device,
 		else {
 			length = device.dev_descriptor.size();
 		}
-		char descriptor[device.dev_descriptor.size()];
+		char* descriptor = new(std::nothrow) char[device.dev_descriptor.size()];
+		if (descriptor == nullptr)
+		{
+		    goto error;
+		}
 		device.dev_descriptor.copyTo(descriptor, length);
-		ept.sendData(reinterpret_cast<char*>(descriptor), length);
+		ept.queue_response(request.wLength(), descriptor, length);
 		break;
 	}
 	case CONFIGURATION:
@@ -307,8 +283,7 @@ int USBDevice::DefaultSetupRequestHandler::usb_get_descriptor(USBDevice& device,
 			}
 		}
 
-		ept.sendData(reinterpret_cast<char*>(data_buffer), max_size);
-		delete[] data_buffer;
+		ept.queue_response(request.wLength(), reinterpret_cast<char*>(data_buffer), max_size);
 		
 		break;
 	}
@@ -335,19 +310,27 @@ int USBDevice::DefaultSetupRequestHandler::usb_set_descriptor(USBDevice&, char*)
 int USBDevice::DefaultSetupRequestHandler::usb_get_configuration(USBDevice& device, char* buf)
 {
 	volatile struct usb_status_info* usb_status{ getUSBStatusInfo() };
-	char configuration{ device.current_config->config_number };
 
 	if (usb_status->state == DEFAULT_STATE) {
 		return -1;
-	}
-	else if (usb_status->state == ADDRESS_STATE) {
-		configuration = 0;
 	}
 	else if (usb_status->state != CONFIGURED_STATE) {
 		return -1;
 	}
 
-	return !device.ep0.sendData(&configuration, 1) ? true : -1;
+	char* configuration = new(std::nothrow) char[1];
+	if (configuration == nullptr)
+	{
+	    return -1;
+	}
+	*configuration = device.current_config->config_number;
+	
+	if (usb_status->state == ADDRESS_STATE) {
+		configuration = 0;
+	}
+
+	device.ep0.queue_data(configuration, 1);
+	return true;
 }
 
 /* SetConfiguration request:
@@ -433,7 +416,7 @@ int USBDevice::out_token_received(unsigned int ep)
 
 	if (ep == 0) {
 		// This is the DATA OUT stage of a SETUP transaction on the default control endpoint.
-		data = ep0.receiveData(length);
+		data = ep0.read_data(length);
 		if (length == 0) {
 			return 0;
 		}
@@ -448,7 +431,7 @@ int USBDevice::out_token_received(unsigned int ep)
 			}
 			else {
 				int status = process_setup_transaction(inProgressSetupTransaction.bytes.get_ptr(),
-													   inProgressSetupTransaction.total_bytes);
+								       inProgressSetupTransaction.total_bytes);
 				inProgressSetupTransaction = {};
 				return status;
 			}
@@ -460,7 +443,7 @@ int USBDevice::out_token_received(unsigned int ep)
 	for (unsigned int i = 0; i < iface.outEndpoints.size(); i++) {
 		if (iface.outEndpoints[i]->ep_number == ep) {
 			// this is an OUT endpoint, so we are receiving data
-			data = iface.outEndpoints[i]->receiveData(length);
+			data = iface.outEndpoints[i]->read_data(length);
 			if (!length || !data) {
 				delete[] data;
 				return -1;
@@ -548,7 +531,7 @@ int USBDevice::process_setup_transaction(char* buffer, unsigned int size)
 			ep0.stall();
 		}
 		else {
-			ep0.complete_setup(bmRequestType);
+			ep0.complete_setup(req);
 		}
 		return status;
 	}
@@ -564,7 +547,7 @@ int USBDevice::process_setup_transaction(char* buffer, unsigned int size)
 			ep0.stall();
 		}
 		else {
-			ep0.complete_setup(bmRequestType);
+			ep0.complete_setup(req);
 		}
 		return status;
 	}
@@ -610,7 +593,7 @@ int USBDevice::process_setup_transaction(char* buffer, unsigned int size)
 	if (bRequest != SET_ADDRESS) {
 		// SET_ADDRESS is handled specially.  The ZLP needs to be sent *before*
 		// the address is changed.
-		ep0.complete_setup(bmRequestType);
+		ep0.complete_setup(req);
 	}
 	return 0;
 error:
@@ -618,29 +601,34 @@ error:
 	return -1;
 }
 
-int USBDevice::setup_token_received(char* buffer, unsigned int size)
+int USBDevice::setup_token_received(const USBStandardDeviceRequest& req)
 {
-	if (!buffer || size != USBStandardDeviceRequest::size()) {
-		ep0.stall();
-		return -1;
-	}
-	// If there is a DATA-OUT stage, receive the incoming data.
-	USBStandardDeviceRequest req{ buffer };
+    char* buffer = new(std::nothrow) char[USBStandardDeviceRequest::size()];
+    if (buffer == nullptr)
+    {
+	ep0.stall();
+	return -1;
+    }
+    req.copyTo(buffer, USBStandardDeviceRequest::size());
+        // If there is a DATA-OUT stage, receive the incoming data.
 	const unsigned char& bmRequestType{ req.bmRequestType() };
 	const unsigned short& wLength{ req.wLength() };
 	const bool data_out_stage{ (bmRequestType & 0x80) == 0 && wLength != 0 };
 	if (data_out_stage) {
-		inProgressSetupTransaction = InProgressTransfer{ size + wLength };
+	        inProgressSetupTransaction = InProgressTransfer{ USBStandardDeviceRequest::size() + wLength };
 		if (!inProgressSetupTransaction.bytes) {
 			inProgressSetupTransaction = {};
 			ep0.stall();
 			return -1;
 		}
-		inProgressSetupTransaction.append(buffer, size);
+		inProgressSetupTransaction.append(buffer, USBStandardDeviceRequest::size());
+		delete[] buffer;
 		// Fall through and check for errors.
 	}
 	else {
-		return process_setup_transaction(buffer, size);
+	        int status = process_setup_transaction(buffer, USBStandardDeviceRequest::size());
+		delete[] buffer;
+		return status;
 	}
 
 	// First determine who this request is for.
@@ -697,11 +685,9 @@ extern "C" {
 		volatile struct usb_status_info* usb_status{ getUSBStatusInfo() };
 		USBControlEndpoint& ept(usb_status->device->ep0);
 		
-		unsigned int length;
-		char* buffer{ ept.receiveSetup(length) };
+		USBStandardDeviceRequest req{ ept.read_setup() };
 
-		int status{ usb_status->device->setup_token_received(buffer, length) };
-		delete[] buffer;
+		int status{ usb_status->device->setup_token_received(req) };
 		if (status < 0) {
 			return -1;
 		}

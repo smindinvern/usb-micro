@@ -57,9 +57,15 @@ int USBTMCInterface::bulk_in_request_handler(USBControlEndpoint* ep0, char* byte
 		// this covers the case where a command message was rejected by the command parser.
 		// in this case, a response message will not be sent, so we just need to respond to
 		// the host here to confirm.
-		char response_bytes[2] = { STATUS_FAILED, req.wValue() };
-		ep0->sendData(response_bytes, sizeof(response_bytes));
-		return true;
+	    char* response_bytes = new(std::nothrow) char[2];
+	    if (response_bytes == nullptr)
+	    {
+		return -1;
+	    }
+	    response_bytes[0] = STATUS_FAILED;
+	    response_bytes[1] = req.wValue() & 0xff;
+	    ep0->queue_data(response_bytes, 2);
+	    return true;
 	}
 }
 
@@ -71,22 +77,35 @@ int USBTMCInterface::bulk_out_request_handler(USBControlEndpoint* ep0, char* byt
 	default:
 		return false;
 	case INITIATE_ABORT_BULK_OUT:
-		if (out_state.current_state != USBTMCBulkOutState::IDLE) {
-			char response_bytes[2] = { STATUS_SUCCESS, out_state.last_bTag };
-			out_state.current_transfer = {};
-			out_state.current_message = {};
-			bulk_out->stall();
-			ep0->sendData(response_bytes, sizeof(response_bytes));
-		}
-		else {
-			char response_bytes[2] = { STATUS_FAILED, out_state.last_bTag };
-			ep0->sendData(response_bytes, sizeof(response_bytes));
-		}
-		break;
+	{
+	    char* response_bytes = new(std::nothrow) char[2];
+	    if (out_state.current_state != USBTMCBulkOutState::IDLE) {
+		response_bytes[0] = STATUS_SUCCESS;
+		response_bytes[1] = out_state.last_bTag;
+		out_state.current_transfer = {};
+		out_state.current_message = {};
+		bulk_out->stall();
+	    }
+	    else {
+		response_bytes[0] = STATUS_FAILED;
+		response_bytes[1] = out_state.last_bTag;
+	    }
+	    ep0->queue_data(response_bytes, 2);
+	    break;
+	}
 	case CHECK_ABORT_BULK_OUT_STATUS:
-		char response_bytes[8] = { STATUS_SUCCESS, 0 };
-		ep0->sendData(response_bytes, sizeof(response_bytes));
-		break;
+	    char* response_bytes = new(std::nothrow) char[8];
+	    if (response_bytes == nullptr)
+	    {
+		return -1;
+	    }
+	    response_bytes[0] = STATUS_SUCCESS;
+	    for (int i = 1; i < 8; i++)
+	    {
+		response_bytes[i] = 0;
+	    }
+	    ep0->queue_response(req.wLength(), response_bytes, 8);
+	    break;
 	}
 	return true;
 }
@@ -165,8 +184,7 @@ int USBTMCInterface::class_request_handler(USBControlEndpoint* ep0, char* bytes)
 			return -1;
 		}
 		size_t length = req.wLength() > response_size ? response_size : req.wLength();
-		ep0->sendData(response_bytes, length);
-		delete[] response_bytes;
+		ep0->queue_response(req.wLength(), response_bytes, length);
 		break;
 	}
 	default:
@@ -424,7 +442,6 @@ int USBTMCDevice::USBTMCSetupRequestHandler::get_status(USBDevice&, char*)
 int USBTMCDevice::USBTMCSetupRequestHandler::usb_clear_feature(USBDevice& device, char*)
 {
 	// TODO
-	device.ep0.sendZLP();
 	return true;
 }
 

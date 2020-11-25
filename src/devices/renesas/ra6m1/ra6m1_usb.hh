@@ -1517,6 +1517,7 @@ void ra6m1_usb_cfifo_write_short_packet(
 void ra6m1_usb_cfifo_write_zlp(unsigned char pipe_number);
 bool ra6m1_usb_pipe_buffer_ready(unsigned char pipe_number);
 void ra6m1_usb_control_transfer(unsigned char transfer_stage);
+void ra6m1_usb_dcp_complete_transaction();
 
 struct RA6M1USBEndpointImpl : public USBEndpointImpl
 {
@@ -1526,9 +1527,18 @@ private:
     bool dir;  // false => in, true => out
     USBEndpoint::ep_type ep_type;
     unsigned short max_pack_size;
+
+    const char* queued_data = nullptr;
+    const char* queued_data_ptr = nullptr;
+    unsigned int queued_size = 0;
+    bool queued_zlp = false;
 public:
     virtual void reset()
     {
+	delete[] queued_data;
+	queued_data = nullptr;
+	queued_data_ptr = nullptr;
+	queued_size = 0;
 	// Configure the endpoint.
 	if (ep_num == 0)
 	{
@@ -1574,41 +1584,68 @@ public:
     {
 	ra6m1_usb_set_pipe_pid(pipe_num, UsbPid::NAK);
     }
-
-    virtual void complete_setup(unsigned char bmRequestType)
+    
+    virtual void complete_setup(const USBStandardDeviceRequest& req)
     {
-	Reg16 dcpctr{ USBFS_DCPCTR };
-	ra6m1_usb_set_dcp_pid(UsbPid::BUF);
-	dcpctr |= USBFS_DCPCTR_CCPL;
+	ra6m1_usb_dcp_complete_transaction();
     }
 
-    virtual int send_data(
-	const char* buf,
-	unsigned int size,
-	bool wait)
+    int send_data()
     {
-	if (size > max_pack_size)
+	if (queued_data == nullptr)
 	{
-	    return -1;
+	    if (queued_zlp)
+	    {
+		ra6m1_usb_cfifo_write_zlp(pipe_num);
+		queued_zlp = false;
+		return true;
+	    }
+	    else
+	    {
+		return false;
+	    }
 	}
-	else if (size == max_pack_size)
+	const unsigned int sent_so_far = (unsigned int)(queued_data_ptr - queued_data);
+	const unsigned int remaining = queued_size - sent_so_far;
+	if (remaining >= max_pack_size)
 	{
-	    ra6m1_usb_cfifo_write(pipe_num, size, buf);
+	    ra6m1_usb_cfifo_write(pipe_num, max_pack_size, queued_data_ptr);
+	    queued_data_ptr += max_pack_size;
 	}
-	else if (size > 0)
+	else if (remaining > 0)
 	{
-	    ra6m1_usb_cfifo_write_short_packet(pipe_num, size, buf);
+	    ra6m1_usb_cfifo_write_short_packet(pipe_num, remaining, queued_data_ptr);
 	}
-	else
+
+	if (remaining <= max_pack_size)
 	{
-	    ra6m1_usb_cfifo_write_zlp(pipe_num);
+	    // This was the last transfer.  Free data.
+	    delete[] queued_data;
+	    queued_data = nullptr;
+	    queued_size = 0;
 	}
-	if (wait)
+	
+	return true;
+    }
+    
+    virtual void queue_data(
+	const char* buf,
+	unsigned int size)
+    {
+	delete[] queued_data;
+	queued_data = buf;
+	queued_data_ptr = buf;
+	queued_size = size;
+	if (ra6m1_usb_cfifo_ready(pipe_num, true))
 	{
-	    Reg16 bempsts{ USBFS_BEMPSTS };
-	    while (!(bempsts & 1U));
+	    // If the pipe is free, start sending the data now.
+	    send_data();
 	}
-	return 0;
+    }
+
+    virtual void queue_zlp()
+    {
+	queued_zlp = true;
     }
 
     virtual char* read_data(unsigned int& size)
@@ -1619,32 +1656,25 @@ public:
 	return ret;
     }
 
-    virtual char* read_setup(unsigned int& size)
+    virtual USBStandardDeviceRequest read_setup()
     {
 	// USB 2.0 9.3: Every setup packet has 8 bytes.
 	// The USBFS parses these and stores them in peripheral registers for us.
 	// We need to reassemble them into a buffer.
-	char* buf = new(std::nothrow) char[8];
-	if (buf == nullptr)
+	USBStandardDeviceRequest setup =
 	{
-	    size = 0;
-	    return nullptr;
-	}
-	size = 8;
-	buf[0] = (char)ra6m1_usb_get_bmRequestType();
-	buf[1] = (char)ra6m1_usb_get_bRequest();
-	unsigned short wValue = ra6m1_usb_get_wValue();
-	memcpy(&buf[2], &wValue, 2);
-	unsigned short wIndex = ra6m1_usb_get_wIndex();
-	memcpy(&buf[4], &wIndex, 2);
-	unsigned short wLength = ra6m1_usb_get_wLength();
-	memcpy(&buf[6], &wLength, 2);
+	    ra6m1_usb_get_bmRequestType(),
+	    ra6m1_usb_get_bRequest(),
+	    ra6m1_usb_get_wValue(),
+	    ra6m1_usb_get_wIndex(),
+	    ra6m1_usb_get_wLength()
+	};
 	// Setup packet received
 	// 29.2.27:
 	// Clear VALID bit before doing any processing.
 	Reg16 intsts0{ USBFS_INTSTS0 };
 	intsts0 = (unsigned short)~(USBFS_INTSTS0_VALID);
-	return buf;
+	return setup;
     }
 
     RA6M1USBEndpointImpl(
@@ -1672,11 +1702,19 @@ public:
 	Reg16 brdyenb{ USBFS_BRDYENB };
 	bempenb &= ~(1U << pipe_num);
 	brdyenb &= ~(1U << pipe_num);
+	delete[] queued_data;
+	queued_data = nullptr;
+	queued_size = 0;
     }
 };
 
 struct RA6M1USBInEndpoint : public USBInEndpoint
 {
+    int send_data()
+    {
+	RA6M1USBEndpointImpl* impl = static_cast<RA6M1USBEndpointImpl*>(this->impl);
+	return impl->send_data();
+    }
     RA6M1USBInEndpoint(
 	unsigned char ep_num_,
 	unsigned char pipe_num_,
@@ -1729,6 +1767,11 @@ struct RA6M1USBOutEndpoint : public USBOutEndpoint
 
 struct RA6M1USBControlEndpoint : public USBControlEndpoint
 {
+    int send_data()
+    {
+	RA6M1USBEndpointImpl* impl = static_cast<RA6M1USBEndpointImpl*>(this->impl);
+	return impl->send_data();
+    }
     RA6M1USBControlEndpoint(
 	unsigned short size)
 	: USBControlEndpoint(

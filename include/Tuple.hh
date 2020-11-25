@@ -84,10 +84,18 @@ template<class T, class U, class... V> struct Tuple
 		{
 			return tt.first;
 		}
+		static const T_& get(const Tuple<T_, U_, V_...>& tt)
+		{
+			return tt.first;
+		}
 	};
 	template<class T_> struct getter<0, T_>
 	{
 		static T_& get(T_& t)
+		{
+			return t;
+		}
+		static const T_& get(const T_& t)
 		{
 			return t;
 		}
@@ -99,8 +107,18 @@ template<class T, class U, class... V> struct Tuple
 		{
 			return getter<I-1, V_...>::get(tt.second);
 		}
+		static auto get(const Tuple<T_, V_...>& tt)
+			-> const typename TupleType<I, T_, V_...>::type&
+		{
+			return getter<I-1, V_...>::get(tt.second);
+		}
 	};
 	
+	template<int I> auto get() const
+		-> const typename TupleType<I, T, U, V...>::type&
+	{
+		return getter<I, T, U, V...>::get(*this);
+	}
 	template<int I> auto get()
 		-> typename TupleType<I, T, U, V...>::type&
 	{

@@ -68,23 +68,23 @@ struct USBStandardDeviceRequest : public DeSerializable<unsigned char,  /* bmReq
 							unsigned short  /* wLength */>
 {
 	using DeSerializable::DeSerializable;
-	unsigned char& bmRequestType()
+	const unsigned char& bmRequestType() const
 	{
 		return this->template get<0>();
 	}
-	unsigned char& bRequest()
+	const unsigned char& bRequest() const
 	{
 		return this->template get<1>();
 	}
-	unsigned short& wValue()
+	const unsigned short& wValue() const
 	{
 		return this->template get<2>();
 	}
-	unsigned short& wIndex()
+	const unsigned short& wIndex() const
 	{
 		return this->template get<3>();
 	}
-	unsigned short& wLength()
+	const unsigned short& wLength() const
 	{
 		return this->template get<4>();
 	}

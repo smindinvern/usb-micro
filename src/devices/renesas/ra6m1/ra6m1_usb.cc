@@ -201,12 +201,18 @@ void ra6m1_usb_cfifo_clear(
     unsigned char pipe_number,
     bool write_dir)
 {
-    if (pipe_number != 00 && !ra6m1_usb_cfifo_ready(pipe_number, write_dir))
+    ra6m1_usb_cfifo_select_pipe(pipe_number, write_dir);
+    if (pipe_number != 0)
     {
-	ra6m1_usb_nak_pipe(pipe_number);
-	ra6m1_usb_cfifo_clear(pipe_number, write_dir);
+	// Wait for pipe to become ready
+	while (!ra6m1_usb_cfifo_ready(pipe_number, write_dir))
+	{
+	    ra6m1_usb_nak_pipe(pipe_number);
+	    ra6m1_usb_cfifo_clear(pipe_number, write_dir);
+	}
     }
     else {
+	ra6m1_usb_cfifo_select_pipe(pipe_number, write_dir);
 	ra6m1_usb_cfifo_clear__();
     }
 }
@@ -287,6 +293,13 @@ void ra6m1_usb_cfifo_write_zlp(unsigned char pipe_number)
     ra6m1_usb_cfifo_send_zlp();
 }
 
+void ra6m1_usb_dcp_complete_transaction()
+{
+    Reg16 dcpctr{ USBFS_DCPCTR };
+    ra6m1_usb_set_dcp_pid(UsbPid::BUF);
+    dcpctr |= USBFS_DCPCTR_CCPL;
+}
+
 void ra6m1_usb_configure_dcp(
     bool auto_nak,
     unsigned char max_packet_size)
@@ -315,6 +328,7 @@ void ra6m1_usb_configure_dcp(
     dcpcfg = auto_nak ? USBFS_DCPCFG_SHTNAK : 0;
     // Sets ISEL to receiving direction
     ra6m1_usb_cfifo_clear(0, false);
+    ra6m1_usb_cfifo_clear(0, true);
     // Enable BRDY and BEMP interrupts on DCP.
     Reg16 bempenb{ USBFS_BEMPENB };
     Reg16 brdyenb{ USBFS_BRDYENB };

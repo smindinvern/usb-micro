@@ -82,9 +82,112 @@ extern "C" {
 	return;
     }
 
+    void usb_device_state_change()
+    {
+	// Clear interrupt flag
+	Reg16 intsts0{ USBFS_INTSTS0 };
+	intsts0 = (unsigned short)~USBFS_INTSTS0_DVST;
+
+	volatile struct usb_status_info* usb_status{ getUSBStatusInfo() };
+
+	// When an interrupt occurs, check for a reset before anything else.
+	// This way we can be assured that if a reset occurs, all endpoints
+	// are immediately reset without attempting to send/receive any more
+	// data.
+	if (UsbDeviceBusResetStatus::reset_in_progress())
+	{
+	    usb_status->device->reset();
+	}
+	else if (ra6m1_usb_get_device_state() == UsbDeviceState::ConfiguredState)
+	{
+	    usb_status->configured = 1;
+	}
+    }
+
+    void usb_resume()
+    {
+	// Clear interrupt flag
+	Reg16 intsts0{ USBFS_INTSTS0 };
+	intsts0 = (unsigned short)~USBFS_INTSTS0_RESM;
+    }
+
+    void usb_control_transfer_state_transition()
+    {
+	// Clear interrupt flag.
+	Reg16 intsts0{ USBFS_INTSTS0 };
+	intsts0 = (unsigned short)~USBFS_INTSTS0_CTRT;
+	
+	ra6m1_usb_control_transfer(ra6m1_usb_get_control_transfer_stage());
+    }
+
+    void usb_pipe_buffer_ready()
+    {
+	// Pipe buffer ready for read/write.
+	// OUT token received
+	Reg16 brdysts{ USBFS_BRDYSTS };
+	unsigned short temp = *brdysts;
+	for (unsigned int i = 0; i <= 9; i++)
+	{
+	    if ((temp & (1U << i)) != 0)
+	    {
+		volatile struct usb_status_info* usb_status{ getUSBStatusInfo() };
+		unsigned char epnum = 0;
+		if (i != 0)
+		{
+		    // Figure out which endpoint this is.
+		    ra6m1_usb_select_pipe(i);
+		    epnum = ra6m1_usb_get_pipe_epnum__();
+		}
+		// Clear BRDY interrupt before accessing FIFO
+		brdysts = (unsigned short)~(1U << i);
+		usb_status->device->out_token_received(epnum);
+		// Service only one endpoint at a time, so that we are sure to
+		// catch a reset as soon as it happens.
+		// TODO: This means that higher-numbered endpoints could be starved.
+		return;
+	    }
+	}
+    }
+
+    void usb_pipe_buffer_empty()
+    {
+	// Buffer empty after FIFO data transmitted
+	// IN token received
+	Reg16 bempsts{ USBFS_BEMPSTS };
+	unsigned short temp = *bempsts;
+	for (unsigned int i = 0; i <= 9; i++)
+	{
+	    if ((temp & (1U << i)) != 0)
+	    {
+		volatile struct usb_status_info* usb_status{ getUSBStatusInfo() };
+		// Clear BEMP interrupt before accessing FIFO
+		bempsts = (unsigned short)~(1U << i);
+		unsigned char epnum = 0;
+		if (i != 0)
+		{
+		    // Figure out which endpoint this is.
+		    ra6m1_usb_select_pipe(i);
+		    epnum = ra6m1_usb_get_pipe_epnum__();
+		    RA6M1USBInEndpoint* ep = static_cast<RA6M1USBInEndpoint*>(usb_status->device->getEndpoint(epnum));
+		    ep->send_data();
+		}
+		else
+		{
+		    RA6M1USBControlEndpoint* ep = static_cast<RA6M1USBControlEndpoint*>(&usb_status->device->ep0);
+		    ep->send_data();
+		}
+		// TODO: this should be immediately after an IN token is received.
+		usb_status->device->in_token_received(epnum);
+		// Service only one endpoint at a time, so that we are sure to
+		// catch a reset as soon as it happens.
+		// TODO: This means that higher-numbered endpoints could be starved.
+		return;
+	    }
+	}
+    }
+    
     void usb_interrupt()
     {
-	volatile struct usb_status_info* usb_status{ getUSBStatusInfo() };
 	// Determine cause of interrupt
 	Reg16 intsts0{ USBFS_INTSTS0 };
 	Reg16 intenb0{ USBFS_INTENB0 };
@@ -92,75 +195,26 @@ extern "C" {
 	unsigned short flags = 0;
 	while (flags = *intsts0, (flags & mask) != 0)
 	{
+	    // NB: Check for reset before anything else!
 	    if (flags & USBFS_INTSTS0_DVST)
 	    {
-		// Clear interrupt flag
-		intsts0 = (unsigned short)~USBFS_INTSTS0_DVST;
-		if (UsbDeviceBusResetStatus::reset_in_progress())
-		{
-		    usb_status->device->reset();
-		}
-		else if (ra6m1_usb_get_device_state() == UsbDeviceState::ConfiguredState)
-		{
-		    usb_status->configured = 1;
-		}
+		usb_device_state_change();
 	    }
-	    if (flags & USBFS_INTSTS0_RESM)
+	    else if (flags & USBFS_INTSTS0_RESM)
 	    {
-		// Clear interrupt flag
-		intsts0 = (unsigned short)~USBFS_INTSTS0_RESM;
+		usb_resume();
 	    }
-	    if (flags & USBFS_INTSTS0_CTRT)
+	    else if (flags & USBFS_INTSTS0_CTRT)
 	    {
-		// Clear interrupt flag.
-		intsts0 = (unsigned short)~USBFS_INTSTS0_CTRT;
-		ra6m1_usb_control_transfer(ra6m1_usb_get_control_transfer_stage());
+		usb_control_transfer_state_transition();
 	    }
-	    if (flags & USBFS_INTSTS0_BRDY)
+	    else if (flags & USBFS_INTSTS0_BRDY)
 	    {
-		// Pipe buffer ready for read/write.
-		// OUT token received
-		Reg16 brdysts{ USBFS_BRDYSTS };
-		unsigned short temp = *brdysts;
-		for (unsigned int i = 0; i <= 9; i++)
-		{
-		    if ((temp & (1U << i)) != 0)
-		    {
-			unsigned char epnum = 0;
-			if (i != 0)
-			{
-			    // Figure out which endpoint this is.
-			    ra6m1_usb_select_pipe(i);
-			    epnum = ra6m1_usb_get_pipe_epnum__();
-			}
-			// Clear BRDY interrupt before accessing FIFO
-			brdysts = (unsigned short)~(1U << i);
-			usb_status->device->out_token_received(epnum);
-		    }
-		}
+		usb_pipe_buffer_ready();
 	    }
-	    if (flags & USBFS_INTSTS0_BEMP)
+	    else if (flags & USBFS_INTSTS0_BEMP)
 	    {
-		// Buffer empty after FIFO data transmitted
-		// IN token received
-		Reg16 bempsts{ USBFS_BEMPSTS };
-		unsigned short temp = *bempsts;
-		for (unsigned int i = 0; i <= 9; i++)
-		{
-		    if ((temp & (1U << i)) != 0)
-		    {
-			unsigned char epnum = 0;
-			if (i != 0)
-			{
-			    // Figure out which endpoint this is.
-			    ra6m1_usb_select_pipe(i);
-			    epnum = ra6m1_usb_get_pipe_epnum__();
-			}
-			// Clear BEMP interrupt before accessing FIFO
-			bempsts = (unsigned short)~(1U << i);
-			usb_status->device->in_token_received(epnum);
-		    }
-		}
+		usb_pipe_buffer_empty();
 	    }
 	}
 	icu_clear_interrupt(0);

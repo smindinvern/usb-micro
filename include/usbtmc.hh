@@ -510,15 +510,13 @@ public:
 		bytes[0] = string_length + 2; // Total descriptor length.
 		bytes[1] = STRING;
 		memcpy(&bytes[2], string_, payload_length);
-		int status = device.ep0.sendData(bytes, payload_length + 2);
-		delete[] bytes;
-		return status;
-		
+		device.ep0.queue_data(bytes, payload_length + 2);
+		return 0;
 	}
 	virtual int usb_get_descriptor(USBDevice& device, char* buf)
 	{
 		const char STRING = 3;
-		char descriptor0[4] = {
+		static const char descriptor0[4] = {
 			4,
 			STRING,
 			0x09,
@@ -532,10 +530,20 @@ public:
 		}
 
 		unsigned int length = (buf[7] * 0x100) + buf[6];
-		switch (buf[2] & 0xff) {
+		unsigned char string_id = buf[2] & 0xff;
+
+		switch (string_id) {
 		case 0:
-			device.ep0.sendData(descriptor0, 4);
-			break;
+		{
+		    char* buffer = new(std::nothrow) char[sizeof(descriptor0)];
+		    if (buffer == nullptr)
+		    {
+			return -1;
+		    }
+		    memcpy(buffer, descriptor0, sizeof(descriptor0));
+		    device.ep0.queue_data(buffer, sizeof(descriptor0));
+		    return true;
+		}
 		case 4:
 			send_string_descriptor(device, manufacturer_name_,
 					       manufacturer_name_size, length);

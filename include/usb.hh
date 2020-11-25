@@ -94,14 +94,15 @@ struct usb_status_info {
  */
 struct USBEndpointImpl
 {
-	virtual void reset() = 0;
-	virtual void stall() = 0;
-	virtual void unstall() = 0;
-	virtual int send_data(const char*, unsigned int, bool) = 0;
-	virtual char* read_data(unsigned int&) = 0;
-	virtual char* read_setup(unsigned int&) = 0;
-        virtual void complete_setup(unsigned char bmRequestType) = 0;
-	virtual ~USBEndpointImpl() = default;
+    virtual void reset() = 0;
+    virtual void stall() = 0;
+    virtual void unstall() = 0;
+    virtual void queue_data(const char*, unsigned int) = 0;
+    virtual void queue_zlp() = 0;
+    virtual char* read_data(unsigned int&) = 0;
+    virtual USBStandardDeviceRequest read_setup() = 0;
+    virtual void complete_setup(const USBStandardDeviceRequest& req) = 0;
+    virtual ~USBEndpointImpl() = default;
 };
 
 struct USBControlEndpoint;
@@ -128,14 +129,6 @@ typedef Invokable<int(USBControlEndpoint*, char*)> USBClassRequestHandler;
 struct USBEndpoint
 {
 protected:
-	int sendData(const char* data, unsigned int length, bool buffered = false);
-	int sendZLP(bool wait = true);
-	char* receiveData(unsigned int& length);
-	char* receiveSetup(unsigned int& length);
-	
-	int send_data(const char* data, unsigned int length, bool buffered) { return (impl->send_data)(data, length, buffered); }
-	char* read_data(unsigned int& length) { return (impl->read_data)(length); }
-	char* read_setup(unsigned int& length) { return (impl->read_setup)(length); }
 	USBEndpointImpl* impl;
 	Vector<USBClassRequestHandler> classRequestHandlers;
 public:
@@ -154,7 +147,10 @@ public:
 	void reset() { return (impl->reset)(); }
 	void stall() { return (impl->stall)();	}
 	void unstall() { return (impl->unstall)(); }
-        void complete_setup(unsigned char bmRequestType) { return (impl->complete_setup)(bmRequestType); }
+        void queue_data(const char* data, unsigned int length) { return (impl->queue_data)(data, length); }
+	char* read_data(unsigned int& length) { return (impl->read_data)(length); }
+	USBStandardDeviceRequest read_setup() { return (impl->read_setup)(); }
+        void complete_setup(const USBStandardDeviceRequest& req) { return (impl->complete_setup)(req); }
 	
 	// notifiers for in/out/setup tokens?
 
@@ -196,8 +192,7 @@ public:
  */
 struct USBInEndpoint : public USBEndpoint
 {
-	using USBEndpoint::sendData;
-	using USBEndpoint::sendZLP;
+	using USBEndpoint::queue_data;
 
 	USBInEndpoint(unsigned char endpointNumber, USBEndpoint::ep_type endpointType,
 				  unsigned short maxPacketSize, unsigned char interval,
@@ -219,7 +214,7 @@ struct USBOutEndpoint : public USBEndpoint
 	unsigned short bytes_transmitted{};
 	unsigned short total_bytes{};
 
-	using USBEndpoint::receiveData;
+	using USBEndpoint::read_data;
 
 	USBOutEndpoint(unsigned char endpointNumber, USBEndpoint::ep_type endpointType,
 				   unsigned short maxPacketSize, unsigned char interval,
@@ -237,10 +232,22 @@ struct USBOutEndpoint : public USBEndpoint
  */
 struct USBControlEndpoint : public USBEndpoint
 {
-	using USBEndpoint::sendData;
-	using USBEndpoint::sendZLP;
-	using USBEndpoint::receiveData;
-	using USBEndpoint::receiveSetup;
+	using USBEndpoint::queue_data;
+	using USBEndpoint::complete_setup;
+	using USBEndpoint::read_data;
+	using USBEndpoint::read_setup;
+
+    void queue_response(
+	unsigned short wLength,
+	char* response,
+	unsigned int response_length)
+    {
+	queue_data(response, response_length);
+	if (response_length != wLength && (response_length % max_packet_size) == 0)
+	{
+	    impl->queue_zlp();
+	}
+    }
 
 	USBControlEndpoint(unsigned char endpointNumber, unsigned short maxPacketSize,
 					   USBEndpointImpl* impl)
@@ -508,7 +515,7 @@ public:
 	void enterDefaultState() { return impl->enterDefaultState(); }
 	void setConfigured(const bool b) { return impl->setConfigured(b); }
 
-	int setup_token_received(char* buffer, unsigned int size);
+        int setup_token_received(const USBStandardDeviceRequest& req);
 	int in_token_received(unsigned int ep);
 	int out_token_received(unsigned int ep);
 protected:

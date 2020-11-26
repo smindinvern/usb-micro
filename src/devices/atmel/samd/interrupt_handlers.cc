@@ -114,24 +114,29 @@ extern "C" {
 	#ifdef USING_USB
 	void udp_interrupt()
 	{
-		// Check if this is an EORST interrupt
-		Reg16 intflag{ USB_INTFLAG };
-		if (intflag & (1 << 3)) {
-			volatile struct usb_status_info* usb_status{ getUSBStatusInfo() };
-			usb_status->device->reset();
-			// Clear interrupt
-			intflag = 1 << 3;
-			return;
-		}
-		Reg16 epintsmry{ USB_EPINTSMRY };
-		while (epintsmry) {
-			for (int i = 0; i < 16; i++) {
-				if ((epintsmry & (1 << i)) != 0) {
-					usb_ep_isr(i);
-				}
-			}
-		}
+	    // Check if this is an EORST interrupt
+	    Reg16 intflag{ USB_INTFLAG };
+	    if (intflag & (1 << 3)) {
+		volatile struct usb_status_info* usb_status{ getUSBStatusInfo() };
+		usb_status->device->reset();
+		// Clear interrupt
+		intflag = 1 << 3;
 		return;
+	    }
+	    Reg16 epintsmry{ USB_EPINTSMRY };
+	    for (int i = 0; i < 16; i++)
+	    {
+		if ((epintsmry & (1 << i)) != 0)
+		{
+		    Reg8 epintflag{ USB_EPINTFLAG(i) };
+		    Reg8 epinten{ USB_EPINTENCLR(i) };
+		    if (epintflag & epinten)
+		    {
+			usb_ep_isr(i);
+		    }
+		}
+	    }
+	    return;
 	}
 	#endif
 

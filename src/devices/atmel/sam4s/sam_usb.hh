@@ -50,11 +50,13 @@ struct AtmelUSBEndpointImplBase : public USBEndpointImpl {
 	control_dir
     } dir;
     bool rx_ppb{};
+    unsigned short max_pack_size;
 
-    AtmelUSBEndpointImplBase(unsigned char epNumber, USBEndpoint::ep_type epType, ep_dir epDir)
+    AtmelUSBEndpointImplBase(unsigned char epNumber, USBEndpoint::ep_type epType, ep_dir epDir, unsigned short max_pack_size)
 	: ep_number{ epNumber },
 	  type{ epType },
-	  dir{ epDir } {}
+	  dir{ epDir },
+	  max_pack_size{ max_pack_size } {}
 };
 
 struct AtmelSAMUSBEndpointImpl : public AtmelUSBEndpointImplBase {
@@ -62,27 +64,30 @@ struct AtmelSAMUSBEndpointImpl : public AtmelUSBEndpointImplBase {
     virtual void reset();
     virtual void stall();
     virtual void unstall();
-    virtual int send_data(const char*, unsigned int, bool);
+    void send_data(const char*, unsigned int);
+    virtual void queue_data(const char*, unsigned int);
+    virtual void queue_zlp();
     virtual char* read_data(unsigned int&);
-    virtual char* read_setup(unsigned int&);
+    virtual int read_setup(USBStandardDeviceRequest&);
+    virtual void complete_setup(const USBStandardDeviceRequest&);
 
-    AtmelSAMUSBEndpointImpl(unsigned char epNumber, USBEndpoint::ep_type epType, ep_dir epDir);
+    AtmelSAMUSBEndpointImpl(unsigned char epNumber, USBEndpoint::ep_type epType, ep_dir epDir, unsigned short max_pack_size);
 };
 
 struct AtmelSAMUSBInEndpoint : public USBInEndpoint {
     AtmelSAMUSBInEndpoint(unsigned char epNum, ep_type epType,
-						  unsigned short maxPackSize, unsigned char interval)
+			  unsigned short maxPackSize, unsigned char interval)
 		: USBInEndpoint((unsigned char)(epNum | 0x80), epType, maxPackSize, interval,
-						new(std::nothrow) AtmelSAMUSBEndpointImpl(epNum, epType, AtmelSAMUSBEndpointImpl::in_dir)) {}
+				new(std::nothrow) AtmelSAMUSBEndpointImpl(epNum, epType, AtmelSAMUSBEndpointImpl::in_dir, maxPackSize)) {}
     AtmelSAMUSBInEndpoint(const AtmelSAMUSBInEndpoint&) = delete;
     AtmelSAMUSBInEndpoint(AtmelSAMUSBInEndpoint&&) = default;
 };
 
 struct AtmelSAMUSBOutEndpoint : public USBOutEndpoint {
     AtmelSAMUSBOutEndpoint(unsigned char epNum, ep_type epType,
-						   unsigned short maxPackSize, unsigned char interval)
+			   unsigned short maxPackSize, unsigned char interval)
 		: USBOutEndpoint((unsigned char)(epNum & ~0x80), epType, maxPackSize, interval,
-						 new(std::nothrow) AtmelSAMUSBEndpointImpl(epNum, epType, AtmelSAMUSBEndpointImpl::out_dir)) {}
+				 new(std::nothrow) AtmelSAMUSBEndpointImpl(epNum, epType, AtmelSAMUSBEndpointImpl::out_dir, maxPackSize)) {}
     AtmelSAMUSBOutEndpoint(const AtmelSAMUSBOutEndpoint&) = delete;
     AtmelSAMUSBOutEndpoint(AtmelSAMUSBOutEndpoint&&) = default;
 };
@@ -90,7 +95,7 @@ struct AtmelSAMUSBOutEndpoint : public USBOutEndpoint {
 struct AtmelSAMUSBControlEndpoint : public USBControlEndpoint {
     AtmelSAMUSBControlEndpoint(unsigned char epNum, unsigned short maxPackSize)
 	: USBControlEndpoint((unsigned char)(epNum & ~0x80), maxPackSize,
-			     new(std::nothrow) AtmelSAMUSBEndpointImpl(epNum, control_ep, AtmelSAMUSBEndpointImpl::control_dir)) {}
+			     new(std::nothrow) AtmelSAMUSBEndpointImpl(epNum, control_ep, AtmelSAMUSBEndpointImpl::control_dir, maxPackSize)) {}
     AtmelSAMUSBControlEndpoint(const AtmelSAMUSBControlEndpoint&) = delete;
     AtmelSAMUSBControlEndpoint(AtmelSAMUSBControlEndpoint&&) = default;
 };

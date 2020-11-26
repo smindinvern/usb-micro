@@ -32,10 +32,12 @@
 #include "sam.hh"
 #include "main.hh"
 
-AtmelSAMUSBEndpointImpl::AtmelSAMUSBEndpointImpl(unsigned char epNumber,
-						 USBEndpoint::ep_type epType,
-						 ep_dir epDir)
-    : AtmelUSBEndpointImplBase(epNumber, epType, epDir)
+AtmelSAMUSBEndpointImpl::AtmelSAMUSBEndpointImpl(
+    unsigned char epNumber,
+    USBEndpoint::ep_type epType,
+    ep_dir epDir,
+    unsigned short max_pack_size)
+    : AtmelUSBEndpointImplBase(epNumber, epType, epDir, max_pack_size)
 {
     // configure endpoint here
     reset();
@@ -58,7 +60,7 @@ void AtmelSAMUSBEndpointImpl::unstall()
     sam_usb_clear_ep_stall(ep_number);
 }
 
-int AtmelSAMUSBEndpointImpl::send_data(const char* data, unsigned int length, bool buffered)
+void AtmelSAMUSBEndpointImpl::send_data(const char* data, unsigned int length)
 {
     if (type == USBEndpoint::control_ep) {
 	sam_usb_set_ep_in_dir(ep_number);
@@ -71,20 +73,35 @@ int AtmelSAMUSBEndpointImpl::send_data(const char* data, unsigned int length, bo
     sam_usb_load_to_fifo(ep_number, data, length);
 	
     do_dmb();
-	sam_usb_set_tx_ready(ep_number);
-	do_dmb();
-	sam_usb_ack_tx_completed(ep_number);
-	wait(10);
+    sam_usb_set_tx_ready(ep_number);
+    do_dmb();
+    sam_usb_ack_tx_completed(ep_number);
+    wait(10);
 	
-    if (type == USBEndpoint::control_ep || !buffered) {
-		/* wait for transaction to finish so our buffer doesn't go away */
-		while (!sam_usb_tx_completed(ep_number)) { // wait for TXCOMP to be set
-			wait(5);
-		}
-		sam_usb_ack_tx_completed(ep_number);
-		wait(5);
+    while (!sam_usb_tx_completed(ep_number)) { // wait for TXCOMP to be set
+	wait(5);
     }
-    return 0;
+    sam_usb_ack_tx_completed(ep_number);
+    wait(5);
+}
+
+void AtmelSAMUSBEndpointImpl::queue_data(const char* data, unsigned int length)
+{
+    for (unsigned int offset = 0; offset < length; offset += max_pack_size)
+    {
+	unsigned int size = length - offset;
+	if (size > max_pack_size)
+	{
+	    size = max_pack_size;
+	}
+	send_data(&data[offset], size);
+    }
+}
+
+void AtmelSAMUSBEndpointImpl::queue_zlp()
+{
+    static const char empty = 0;
+    queue_data(&empty, 0);
 }
 
 char* AtmelSAMUSBEndpointImpl::read_data(unsigned int& length)
@@ -109,28 +126,40 @@ char* AtmelSAMUSBEndpointImpl::read_data(unsigned int& length)
     return data;
 }
 
-char* AtmelSAMUSBEndpointImpl::read_setup(unsigned int& length)
+int AtmelSAMUSBEndpointImpl::read_setup(USBStandardDeviceRequest& req)
 {
-    length = sam_usb_setup_token_length(ep_number);
-    if (!length) {
-		return nullptr;
+    unsigned int length = sam_usb_setup_token_length(ep_number);
+    if (length != 8) {
+	return -1;
     }
 
-    char* data{ new(std::nothrow) char[length] };
+    char* data{ new(std::nothrow) char[8] };
     if (!data) {
-		return nullptr;
+	return -1;
     }
 
-    sam_usb_load_from_fifo(ep_number, data, length);
-	// Set endpoint direction for DATA stage.
-	if ((data[0] & 0x80) != 0) {
-		// Data transfer direction = Device-to-host.
-		sam_usb_set_ep_in_dir(ep_number);
-	}
-	else {
-		sam_usb_set_ep_out_dir(ep_number);
-	}
+    sam_usb_load_from_fifo(ep_number, data, 8);
+    req = USBStandardDeviceRequest{ data };
+    delete[] data;
+    // TODO: don't do this here.
+    // Set endpoint direction for DATA stage.
+    if ((data[0] & 0x80) != 0) {
+	// Data transfer direction = Device-to-host.
+	sam_usb_set_ep_in_dir(ep_number);
+    }
+    else {
+	sam_usb_set_ep_out_dir(ep_number);
+    }
     sam_usb_ack_setup_completed(ep_number);
-	
-    return data;
+    
+    return 0;
+}
+
+void AtmelSAMUSBEndpointImpl::complete_setup(const USBStandardDeviceRequest& req)
+{
+    if ((req.bmRequestType() & 0x80) == 0)
+    {
+	// Send ZLP for setup status stage.
+	queue_zlp();
+    }
 }

@@ -39,6 +39,7 @@ SECTIONS
 	.text : {
 			*(.vector_table)
 			*(.text)
+			*(.text.*)
 			*(.rodata)
 			*(.got)
       			*(.data)

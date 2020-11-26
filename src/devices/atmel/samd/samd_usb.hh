@@ -208,7 +208,7 @@ public:
 	{
 		return desc->bank0.pcksize & 0x3FFF;
 	}
-	virtual int send_data(const char* buf, unsigned int size, bool wait)
+	void send_data(const char* buf, unsigned int size)
 	{
 		unsigned int addr = desc->bank1.addr;
 		if (buf < (void*)0x20000000) {
@@ -228,7 +228,23 @@ public:
 		desc->bank1.addr = addr;
 		// Clear TRCPT1 interrupt flag
 		epintflag = 1 << 1;
-		return 0;
+	}
+        void queue_data(const char* buf, unsigned int size)
+	{
+	    for (unsigned int offset = 0; offset < size; offset += max_pack_size)
+	    {
+		unsigned int tx_size = size - offset;
+		if (tx_size > max_pack_size)
+		{
+		    tx_size = max_pack_size;
+		}
+		send_data(&buf[offset], size);
+	    }
+	}
+        void queue_zlp()
+	{
+	    static const char empty = 0;
+	    send_data(&empty, 0);
 	}
 	char* get_data(unsigned int& size)
 	{
@@ -248,13 +264,28 @@ public:
 		epintflag = 1;
 		return data;
 	}
-	virtual char* read_setup(unsigned int& size)
+	virtual int read_setup(USBStandardDeviceRequest& req)
 	{
+	        unsigned int size;
 		char* data{ get_data(size) };
+		if (size != 8)
+		{
+		    return -1;
+		}
 		// Clear RXSTP and TRCPT0 interrupt flags
 		Reg8 epintflag{ USB_EPINTFLAG(ep_num) };
 		epintflag = (1 << 4) | 1;
-		return data;
+		req = USBStandardDeviceRequest{ data };
+		delete[] data;
+		return 0;
+	}
+        virtual void complete_setup(const USBStandardDeviceRequest& req)
+	{
+	    if ((req.bmRequestType() & 0x80) == 0)
+	    {
+		// Host-to-device transaction.  Need to send ZLP for status stage.
+		queue_zlp();
+	    }
 	}
 	samd21_ep_bank_desc* bank(const bool dir_) const
 	{

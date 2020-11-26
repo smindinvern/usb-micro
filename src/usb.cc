@@ -684,9 +684,12 @@ extern "C" {
 	{
 		volatile struct usb_status_info* usb_status{ getUSBStatusInfo() };
 		USBControlEndpoint& ept(usb_status->device->ep0);
-		
-		USBStandardDeviceRequest req{ ept.read_setup() };
 
+		USBStandardDeviceRequest req;
+		if (ept.read_setup(req) < 0)
+		{
+		    return -1;
+		}
 		int status{ usb_status->device->setup_token_received(req) };
 		if (status < 0) {
 			return -1;

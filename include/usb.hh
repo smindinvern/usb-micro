@@ -100,8 +100,8 @@ struct USBEndpointImpl
     virtual void queue_data(const char*, unsigned int) = 0;
     virtual void queue_zlp() = 0;
     virtual char* read_data(unsigned int&) = 0;
-    virtual USBStandardDeviceRequest read_setup() = 0;
-    virtual void complete_setup(const USBStandardDeviceRequest& req) = 0;
+    virtual int read_setup(USBStandardDeviceRequest&) = 0;
+    virtual void complete_setup(const USBStandardDeviceRequest&) = 0;
     virtual ~USBEndpointImpl() = default;
 };
 
@@ -149,7 +149,7 @@ public:
 	void unstall() { return (impl->unstall)(); }
         void queue_data(const char* data, unsigned int length) { return (impl->queue_data)(data, length); }
 	char* read_data(unsigned int& length) { return (impl->read_data)(length); }
-	USBStandardDeviceRequest read_setup() { return (impl->read_setup)(); }
+	int read_setup(USBStandardDeviceRequest& req) { return (impl->read_setup)(req); }
         void complete_setup(const USBStandardDeviceRequest& req) { return (impl->complete_setup)(req); }
 	
 	// notifiers for in/out/setup tokens?

@@ -1656,12 +1656,12 @@ public:
 	return ret;
     }
 
-    virtual USBStandardDeviceRequest read_setup()
+    virtual int read_setup(USBStandardDeviceRequest& req)
     {
 	// USB 2.0 9.3: Every setup packet has 8 bytes.
 	// The USBFS parses these and stores them in peripheral registers for us.
 	// We need to reassemble them into a buffer.
-	USBStandardDeviceRequest setup =
+	req = USBStandardDeviceRequest
 	{
 	    ra6m1_usb_get_bmRequestType(),
 	    ra6m1_usb_get_bRequest(),
@@ -1674,7 +1674,7 @@ public:
 	// Clear VALID bit before doing any processing.
 	Reg16 intsts0{ USBFS_INTSTS0 };
 	intsts0 = (unsigned short)~(USBFS_INTSTS0_VALID);
-	return setup;
+	return 0;
     }
 
     RA6M1USBEndpointImpl(

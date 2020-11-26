@@ -49,9 +49,9 @@ constexpr unsigned int exp2(const unsigned int n)
 	return (1 << n);
 }
 
-#define PAGE_SIZE 64
-#define NUM_PAGES exp2(log2((size_t )((RAM_SIZE) / (PAGE_SIZE))))
-#define HEAP_LEVELS (log2(NUM_PAGES) + 1)
+static const size_t PAGE_SIZE = 64;
+static const size_t NUM_PAGES = exp2(log2((size_t )((RAM_SIZE) / (PAGE_SIZE))));
+static const size_t HEAP_LEVELS = (log2(NUM_PAGES) + 1);
 
 extern "C" {
 	void* memcpy(void* dest, const void* src, unsigned int length);

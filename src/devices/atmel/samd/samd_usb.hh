@@ -190,14 +190,28 @@ public:
 	virtual void stall()
 	{
 		Reg8 epstatusset{ USB_EPSTATUSSET(ep_num) };
-		unsigned char shift = dir ? 4 : 5;
-		epstatusset = 1 << shift;
+		if (ep_type == USBEndpoint::ep_type::control_ep)
+		{
+		    epstatusset = (0b11U << 4);
+		}
+		else
+		{
+		    unsigned char shift = dir ? 4 : 5;
+		    epstatusset = 1 << shift;
+		}
 	}
 	virtual void unstall()
 	{
 		Reg8 epstatusclr{ USB_EPSTATUSCLR(ep_num) };
-		unsigned char shift = dir ? 4 : 5;
-		epstatusclr = 1 << shift;
+		if (ep_type == USBEndpoint::ep_type::control_ep)
+		{
+		    epstatusclr = (0b11U << 4);
+		}
+		else
+		{
+		    unsigned char shift = dir ? 4 : 5;
+		    epstatusclr = 1 << shift;
+		}
 	}
 	void set_tx_size(unsigned short size)
 	{

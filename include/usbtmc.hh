@@ -491,18 +491,18 @@ public:
 	virtual int usb_set_feature(USBDevice&, char*) { return 0; }
 	virtual int usb_set_address(USBDevice&, char*) { return 0; }
 	int send_string_descriptor(USBDevice& device, const wchar_t* string_,
-				   size_t string_length, size_t tx_length)
+				   size_t string_length, size_t wLength)
 	{
 		const char STRING = 3;
 		// STRING desciptors contain a 2-byte header.
-		if (tx_length < 2) {
+		if (wLength < 2) {
 			return -1;
 		}
 		else if (string_length > 253) {
 			// descriptor strings can't be longer than 253 bytes.
 			return -1;
 		}
-		tx_length -= 2;
+		size_t tx_length = wLength - 2;
 		// Truncate descriptor if needed to fit in requested transmission length.
 		size_t payload_length{ (string_length < tx_length) ? string_length : tx_length };
 		char* bytes = new(std::nothrow) char[payload_length + 2];
@@ -510,7 +510,7 @@ public:
 		bytes[0] = string_length + 2; // Total descriptor length.
 		bytes[1] = STRING;
 		memcpy(&bytes[2], string_, payload_length);
-		device.ep0.queue_response(tx_length, bytes, payload_length + 2);
+		device.ep0.queue_response(wLength, bytes, payload_length + 2);
 		return 0;
 	}
 	virtual int usb_get_descriptor(USBDevice& device, char* buf)

@@ -31,9 +31,7 @@
 #ifndef MAIN_HH_
 #define MAIN_HH_
 
-#ifndef __cplusplus
-typedef _Bool bool;
-#endif
+#include "stdbool.hh"
 
 #ifdef __cplusplus
 extern "C" {

@@ -31,6 +31,8 @@
 #ifndef ARM_HH_
 #define ARM_HH_
 
+#include "stdbool.hh"
+
 #include "primitives.hh"
 
 #ifdef __cplusplus

@@ -240,6 +240,7 @@ public:
 		}
 		send_data(&buf[offset], size);
 	    }
+	    delete[] buf;
 	}
         void queue_zlp()
 	{

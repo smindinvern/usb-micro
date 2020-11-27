@@ -1,6 +1,6 @@
 Import('env')
 
-env.Append(CPPDEFINES=[('FLASH_SIZE', '0x80000'),('RAM_SIZE', '0x20000')])
+env.Append(CPPDEFINES=[('FLASH_SIZE', '0x80000'),('RAM_SIZE', '0x20000'),('USB_PREFIX', 'ra6m1_usb')])
 
 objs = env.SConscript('../../arm/cortex-m4.SConscript')
 

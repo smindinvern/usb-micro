@@ -4,7 +4,7 @@ objs = env.SConscript('../../arm/cortex-m0plus.SConscript')
 
 # Exported for consumption globally.
 env.AppendUnique(CPPPATH=[Dir(x) for x in ['.', 'atsamd21']])
-env.Append(CPPDEFINES=['ATSAMD21'])
+env.Append(CPPDEFINES=['ATSAMD21',('USB_PREFIX','samd_usb')])
 env.AppendUnique(CCFLAGS=['-mlittle-endian'])
 env.Append(LINKFLAGS=['-T', File("samd21-linker.ld")])
 

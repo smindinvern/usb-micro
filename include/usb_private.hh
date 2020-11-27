@@ -319,8 +319,10 @@ struct USBEndpointDescriptor : public USBRawEndpointDescriptor
 	USBEndpointDescriptor(USBEndpointDescriptor&&) = default;
 };
 
-#define usb_func(x) \
-	ra6m1_usb_##x
+#include "macros.hh"
+
+#define usb_func(x)				\
+    xglue(USB_PREFIX, xglue(_, x))
 
 #define __usb_set_address usb_func(set_address)
 #define __usb_set_configured usb_func(set_configured)

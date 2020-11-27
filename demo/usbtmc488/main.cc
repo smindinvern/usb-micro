@@ -66,7 +66,8 @@ void init(
     unsigned int fck_div_bits,
     unsigned int pli_div_bits,
     unsigned int pll_mul_bits,
-    unsigned int flwt_bits);
+    unsigned int flwt_bits,
+    unsigned int sramwtsc_bits);
 
 extern "C" {
 	void start()
@@ -83,7 +84,8 @@ extern "C" {
 		CLK_DIV(4),                   // FCLK divider
 		PLIDIV_1,                     // PLL divider
 		PLLMUL(15),                   // PLL multiplier
-		FLWT_ICLK_80M_TO_120M);       // flash wait cycles
+		FLWT_ICLK_80M_TO_120M,        // flash wait cycles
+		0b11);                        // 1 wait state on SRAM access.
 
 	    // Enable trace pins
 	    const unsigned int trace_id = 0b11010;
@@ -96,10 +98,10 @@ extern "C" {
 	    unmask_interrupts();
 	    volatile struct usb_status_info* usb_status{ getUSBStatusInfo() };
 
-#define MAX_PACKET_SIZE (64U)
-#define VENDOR_ID (0U)
-#define PRODUCT_ID (0U)
-#define BCD_DEVICE_VERSION (0x0100)
+#define MAX_PACKET_SIZE (8U)
+#define VENDOR_ID (0x1209U) // pid.codes VID
+#define PRODUCT_ID (1U) // pid.codes Test PID
+#define BCD_DEVICE_VERSION (0x0100) // 1.00
 
 	    const USBTMCDeviceDescriptor device_descriptor = {
 		MAX_PACKET_SIZE,
@@ -117,7 +119,7 @@ extern "C" {
 	    USBDeviceFactory cstr = {
 		[&](auto&& fact) -> auto
 		    {
-			USBDevice dev{ RA6M1USBControlEndpoint{ 64 },
+			USBDevice dev{ RA6M1USBControlEndpoint{ MAX_PACKET_SIZE },
 			    device_descriptor, std::move(fact),
 			    new(std::nothrow) USBDeviceGenericImpl() };
 			return dev;
@@ -136,12 +138,43 @@ extern "C" {
 		    }
 	    };
 
+	    char idn_string[] = "Touch Technologies,USB Toucher,1337,0\n";
+	    
+	    USBTMCInterface::in_msg_handler dev_dep_in =
+		[=](USBInEndpoint& in_ep,
+		   unsigned char MsgId,
+		   unsigned char bTag,
+		   unsigned int transferSize,
+		   bool useTermChar,
+		   char termChar) -> int
+		    {
+			// Handle device-dependent request messages sent from host here.
+			unsigned int size = (transferSize > sizeof(idn_string))
+			    ? sizeof(idn_string)
+			    : transferSize;
+			USBTMCDevDepMsgIn msg{ bTag, size, useTermChar, true };
+			char* packet = new(std::nothrow) char[size + USBTMCDevDepMsgIn::size()];
+			msg.copyTo(packet, USBTMCDevDepMsgIn::size());
+			memcpy(packet + USBTMCDevDepMsgIn::size(), idn_string, sizeof(idn_string));
+			in_ep.queue_data(packet, size + USBTMCDevDepMsgIn::size());
+			// Return 0 to indicate no error.
+			return 0;
+		    };
+	    USBTMCInterface::out_msg_handler dev_dep_out =
+		[](unsigned char MsgID,
+		   unsigned char bTag,
+		   unsigned int transferSize,
+		   char* msgBytes) -> int
+		    {
+			return 0;
+		    };
+
 	    const wchar_t* manufacturer_name{ L"Touch Technologies" };
 	    const wchar_t* product_name{ L"USB Toucher" };
 	    const wchar_t* serial_number{ L"1337" };
 	    USBTMCDevice tmc_dev = create_usbtmc488_device(manufacturer_name, product_name,
-							   serial_number, cstr, get_out_ep,
-							   get_in_ep);
+							   serial_number, &cstr, &get_out_ep,
+							   &get_in_ep, &dev_dep_out, &dev_dep_in);
 	    usb_status->device = &tmc_dev;
 	    ra6m1_usb_enable();
 

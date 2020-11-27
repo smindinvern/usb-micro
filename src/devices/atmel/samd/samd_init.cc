@@ -34,6 +34,23 @@
 #include "usb.hh"
 #include "mm.hh"
 
+/**
+ * At POR, the clock system is configured as follows:
+ *
+ *        /8             GCLK_MAIN        /1
+ * OSC8M------>GCLKGEN0------------->PM-------->CLK_CPU
+ *                                   ||
+ *                                   ||
+ *              USB<=================++ /1
+ *                                   ||
+ *                                   ||
+ *                                   ||
+ *                                AHB/APB clocks
+ *
+ * The SYSCTRL, GCLK and PM modules are already powered and clocked.
+ */
+
+
 void setup_xosc32k()
 {
 	Reg16 xosc32k{ SYSCTRL_XOSC32K };
@@ -98,103 +115,72 @@ void configure_dfll48m(unsigned short multiplier)
 	while (!(pclksr & (1U << 4U)));
 }
 
-void setup_clocks()
+// Fclk_fdpll96m = Fclk_fdpll96m_ref * (ratio + (LDRFRAC/16))
+// Fclk_fdpll96m_ref = f_xosc * (1 / (2 * div))
+// For a 32kHz oscillator, x1500 = 48MHz.
+void configure_dpll(
+    unsigned short ratio,
+    unsigned char sixteenths,
+    unsigned char ref_clk_bits,
+    unsigned short div)
 {
-	/**
-	 * At POR, the clock system is configured as follows:
-	 *
-	 *        /8             GCLK_MAIN        /1
-	 * OSC8M------>GCLKGEN0------------->PM-------->CLK_CPU
-	 *                                   ||
-	 *                                   ||
-	 *              USB<=================++ /1
-	 *                                   ||
-	 *                                   ||
-	 *                                   ||
-	 *                                AHB/APB clocks
-	 *
-	 * The SYSCTRL, GCLK and PM modules are already powered and clocked.
-	 *
-	 * In order to operate the USB, we need a 48MHz clock.  In order
-	 * to respond to USB events with minimal latency, we also clock
-	 * the CPU and AHB/APB buses at 48MHz.
-	 *
-	 *          /1            GCLK_MAIN       /1
-	 * DFLL48M----->GCLKGEN0------------>PM-------->CLK_CPU
-	 *    ^               |              ||
-	 *    +------------+  +-----+        ||
-	 *          /1     |        |        || /1
-	 * OSC8M------->GCLKGEN1    |        ||
-	 *                          V        ||
-	 *                         USB<======++
-	 *                                   ||
-	 *                                AHB/APB clocks
-	 */
+    // Make sure that the DPLL is disabled before we reconfigure it.
+    Reg8 dpllctrla{ SYSCTRL_DPLLCTRLA };
+    dpllctrla = 0;
 
-#if 0
-	configure_dfll48m(48000);
-	setup_gclkgen(GCLKGEN1, DFLL48M, 1);
-	// Before switching CPU to 48MHz clock, configure NVM controller to use 1 wait-state,
-	// as per section 37.12 of the SAMD21 datasheet.
-	Reg32 nvmctrlb{ NVMCTRL_CTRLB };
-	nvmctrlb = (nvmctrlb & ~(0xf << 1)) | (1 << 1);
-	// Feed GCLKGEN0 with DPLL.  This sets GCLK_MAIN to 48MHz.
-	setup_gclkgen(GCLKGEN0, GCLKGEN1, 1);
-#endif	
-  
-#if 1
-	setup_xosc32k();
+    Reg32 dpllratio{ SYSCTRL_DPLLRATIO };
+    dpllratio = (ratio - 1) | (sixteenths << 16);
 
-	setup_gclkgen(GCLKGEN2, XOSC32K, 1);
-	setup_gclk(GCLKGEN2, GCLK_DPLL_32K);
-	setup_gclk(GCLKGEN2, GCLK_DPLL);
+    // Set DPLL reference clock source and division factor.
+    Reg32 dpllctrlb{ SYSCTRL_DPLLCTRLB };
+    dpllctrlb = (ref_clk_bits << 4) | ((div - 1) << 16);
 
-	// Make sure that the DPLL is disabled before we reconfigure it.
-	Reg8 dpllctrla{ SYSCTRL_DPLLCTRLA };
-	dpllctrla = 0;
-
-	// For a 32kHz * 1500 = 48MHz.  Fclk_fdpll96m = Fclk_fdpll96m_ref * (LDR + 1 + (LDRFRAC/16))
-	// So DPLLRATIO.LDR = 1499 yields a multiplier of 1500.
-	Reg32 dpllratio{ SYSCTRL_DPLLRATIO };
-	dpllratio = 1499;
-
-	// Set DPLL ref clock to GCLK_DPLL.
-	Reg32 dpllctrlb{ SYSCTRL_DPLLCTRLB };
-	dpllctrlb = (2 << 4);
-
-	// Enable the DPLL output.
-	dpllctrla = (1 << 7) | (1 << 1);
-
-	// Before switching CPU to 48MHz clock, configure NVM controller to use 1 wait-state,
-	// as per section 37.12 of the SAMD21 datasheet.
-	Reg32 nvmctrlb{ NVMCTRL_CTRLB };
-	nvmctrlb = (nvmctrlb & ~(0xf << 1)) | (1 << 1);
-	// Feed GCLKGEN0 with DPLL.  This sets GCLK_MAIN to 48MHz.
-	setup_gclkgen(GCLKGEN0, FDPLL96M, 1);
-	// Feed GCLKGEN1 with DPLL to clock USB module.
-	setup_gclkgen(GCLKGEN1, FDPLL96M, 1);
-#endif
+    // Enable the DPLL output.
+    dpllctrla = (1 << 7) | (1 << 1);
 }
 
-void samd_init_usb()
+
+// 37.12
+// +-------------+---------------+---------------------------+
+// |Vdd range    |NVM wait states|Maximum operating frequency|
+// +-------------+---------------+---------------------------+
+// |1.62V to 2.7V|0              |14MHz                      |
+// |             +---------------+---------------------------+
+// |             |1              |28MHz                      |
+// |             +---------------+---------------------------+
+// |             |2              |42MHz                      |
+// |             +---------------+---------------------------+
+// |             |3              |48MHz                      |
+// +-------------+---------------+---------------------------+
+// |2.7V to 3.63V|0              |24MHz                      |
+// |             +---------------+---------------------------+
+// |             |1              |48MHz                      |
+// +-------------+---------------+---------------------------+
+void set_cpu_clock(
+    unsigned char gclk_source,
+    unsigned char nvm_wait_states)
 {
-	configure_dfll48m(48000);
-	setup_gclkgen(GCLKGEN1, DFLL48M, 1);
-	// Feed GCLKGEN0 with DPLL.  This sets GCLK_MAIN to 48MHz.
-	// setup_gclkgen(GCLKGEN0, GCLKGEN1_OUTPUT, 1);
+    // Before switching CPU clock, configure NVM controller wait-states,
+    // as per section 37.12 of the SAMD21 datasheet.
+    Reg32 nvmctrlb{ NVMCTRL_CTRLB };
+    nvmctrlb = (nvmctrlb & ~(0xf << 1)) | (nvm_wait_states << 1);
+    // Feed GCLKGEN0 with DPLL.  This sets GCLK_MAIN clock.
+    setup_gclkgen(GCLKGEN0, gclk_source, 1);
 }
 
-void init()
+void init(
+    unsigned char gclk_source,
+    unsigned char nvm_wait_states)
 {
     // Disable watchdog timer
-	Reg32 wdt_ctrl{ WDT_CTRL };
-	// CTRL.ALWAYSON = 0
-	// CTRL.ENABLE = 0
-	wdt_ctrl = 0;
-	// Enable usage fault, bus fault, and mem fault
-	Reg32 scb_shcsr{ ARM_SCB_SHCSR };
-	scb_shcsr = (1 << 18) | (1 << 17) | (1 << 16);
+    Reg32 wdt_ctrl{ WDT_CTRL };
+    // CTRL.ALWAYSON = 0
+    // CTRL.ENABLE = 0
+    wdt_ctrl = 0;
+    // Enable usage fault, bus fault, and mem fault
+    Reg32 scb_shcsr{ ARM_SCB_SHCSR };
+    scb_shcsr = (1 << 18) | (1 << 17) | (1 << 16);
 
-	setup_clocks();
-	init_mm();
+    set_cpu_clock(gclk_source, nvm_wait_states);
+    init_mm();
 }

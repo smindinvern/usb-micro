@@ -510,7 +510,7 @@ public:
 		bytes[0] = string_length + 2; // Total descriptor length.
 		bytes[1] = STRING;
 		memcpy(&bytes[2], string_, payload_length);
-		device.ep0.queue_data(bytes, payload_length + 2);
+		device.ep0.queue_response(tx_length, bytes, payload_length + 2);
 		return 0;
 	}
 	virtual int usb_get_descriptor(USBDevice& device, char* buf)
@@ -541,7 +541,7 @@ public:
 			return -1;
 		    }
 		    memcpy(buffer, descriptor0, sizeof(descriptor0));
-		    device.ep0.queue_data(buffer, sizeof(descriptor0));
+		    device.ep0.queue_response(length, buffer, sizeof(descriptor0));
 		    return true;
 		}
 		case 4:

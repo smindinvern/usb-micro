@@ -200,43 +200,62 @@ public:
  */
 int usb_get_report(USBControlEndpoint* ep0, char* buf)
 {
-	char report[8] {};
-
 	if (buf[2] != 0 || buf[3] != 1 || buf[4] != 0 || buf[5] != 0) {
 		return -1;
 	}
 
-	unsigned int size{ buf[6] < sizeof(report) ? buf[6] : sizeof(report) };
-	return ep0->sendData(report, size);
+	char* report = new(std::nothrow) char[8];
+	if (report == nullptr)
+	{
+	    return -1;
+	}
+	memset(report, 0, 8);
+
+	unsigned int size{ buf[6] < 8 ? buf[6] : 8 };
+	ep0->queue_data(report, size);
+	return true;
 }
 
 int usb_get_idle(USBControlEndpoint* ep0, char* buf)
 {
 	volatile struct usb_status_info* usb_status{ getUSBStatusInfo() };
-	char idle(usb_status->idle);
 
 	if (buf[2] != 0 || buf[3] != 0) {
 		return -1;
 	}
 
-	return ep0->sendData(&idle, 1);
+	char* idle = new(std::nothrow) char[1];
+	if (idle == nullptr)
+	{
+	    return -1;
+	}
+	*idle = usb_status->idle;
+
+	ep0->queue_data(idle, 1);
+	return true;
 }
 
 int usb_get_protocol(USBControlEndpoint* ep0, char* buf)
 {
 	volatile struct usb_status_info* usb_status{ getUSBStatusInfo() };
-	char protocol(usb_status->protocol);
 
 	if (buf[2] != 0 || buf[3] != 0 || buf[4] != 0 || buf[5] != 0 || buf[6] != 1 || buf[7] != 0) {
 		return -1;
 	}
 
-	return ep0->sendData(&protocol, 1);
+	char* protocol = new(std::nothrow) char[1];
+	if (protocol == nullptr)
+	{
+	    return -1;
+	}
+	*protocol = usb_status->protocol;
+
+	ep0->queue_data(protocol, 1);
+	return true;
 }
 
 int usb_set_report(USBControlEndpoint* ep0, char* buf)
 {
-	return ep0->sendZLP();
 	return true;
 }
 
@@ -249,7 +268,7 @@ int usb_set_idle(USBControlEndpoint* ep0, char* buf)
 	}
 
 	usb_status->idle = (unsigned char)(buf[3]);
-	return ep0->sendZLP();
+	return true;
 }
 
 int usb_set_protocol(USBControlEndpoint* ep0, char* buf)
@@ -261,8 +280,7 @@ int usb_set_protocol(USBControlEndpoint* ep0, char* buf)
 	}
 
 	usb_status->protocol = buf[2];
-
-	return ep0->sendZLP();
+	return true;
 }
 
 int usb_hid_class_request_handler(USBControlEndpoint* ep0, char* buf)

@@ -254,19 +254,21 @@ extern "C" {
 
 	/* provide some usefule <cstring> memory functions */
 
-	void* memcpy(void* dest, const void* src, unsigned int length)
+	void* memcpy(void* dest, const void* src, size_t count)
 	{
-		for (unsigned int i = 0; i < length; i++) {
+		for (unsigned int i = 0; i < count; i++) {
 			((char*)dest)[i] = ((char*)src)[i];
 		}
 		return dest;
 	}
 
-	void memset(char* buf, int val, unsigned int length)
+	void* memset(void* buf, int val, size_t count)
 	{
-		for (unsigned int i = 0; i < length; i++) {
-			buf[i] = val;
-		}
+	    char* buffer = reinterpret_cast<char*>(buf);
+	    for (size_t i = 0; i < count; i++) {
+		buffer[i] = val;
+	    }
+	    return buf;
 	}
 
 	void* realloc(void* orig, unsigned int nu_size)

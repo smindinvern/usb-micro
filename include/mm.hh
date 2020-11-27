@@ -54,8 +54,8 @@ static const size_t NUM_PAGES = exp2(log2((size_t )((RAM_SIZE) / (PAGE_SIZE))));
 static const size_t HEAP_LEVELS = (log2(NUM_PAGES) + 1);
 
 extern "C" {
-	void* memcpy(void* dest, const void* src, unsigned int length);
-	void memset(char* buf, int val, unsigned int length);
+	void* memcpy(void* dest, const void* src, size_t count);
+	void* memset(void* buf, int val, size_t count);
 	void* realloc(void* orig, unsigned int nu_size);
 	void do_isb();
 	void do_dmb();

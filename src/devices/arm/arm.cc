@@ -101,7 +101,28 @@ extern "C" {
 		syst_rvr = n & 0x00FFFFFF;
 	}
 
-	void systick_set_tickint(bool enabled)
+        void systick_reset_value()
+	{
+	    // Cortex-M4 Devices Generic User Guide
+	    // 4.4.3: SysTick Current Value Register
+	    Reg32 syst_cvr{ ARM_SYST_CVR };
+	    // Reset current value to 0.
+	    syst_cvr = 0;
+	}
+
+        unsigned int systick_get_value()
+	{
+	    Reg32 syst_cvr{ ARM_SYST_CVR };
+	    return *syst_cvr;
+	}
+
+        bool systick_has_overflowed()
+        {
+            Reg32 syst_csr{ ARM_SYST_CSR };
+            return (*syst_csr & (1U << 16)) != 0;
+        }
+
+        void systick_set_tickint(bool enabled)
 	{
 		// 4.4.1: SysTick Control and Status Register
 		Reg32 syst_csr{ ARM_SYST_CSR };
@@ -152,11 +173,7 @@ extern "C" {
 		unsigned int mask_temp = mask & ~(1U << SYSTICK_VECTOR);
 		set_interrupt_mask(0, mask_temp);
 		systick_set_count(n);
-		// Cortex-M4 Devices Generic User Guide
-		// 4.4.3: SysTick Current Value Register
-		Reg32 syst_cvr{ ARM_SYST_CVR };
-		// Reset current value to 0.
-		syst_cvr = 0;
+		systick_reset_value();
 		// 4.4.1: SysTick Control and Status Register
 		Reg32 syst_csr{ ARM_SYST_CSR };
 		systick_start_counting();

@@ -47,6 +47,9 @@ extern "C" {
 	void systick_use_external_clock();
 	void systick_use_cpu_clock();
 	void systick_set_count(unsigned int count);
+        void systick_reset_value();
+        unsigned int systick_get_value();
+        bool systick_has_overflowed();
 	void systick_start_counting();
 	void systick_stop_counting();
 	void systick_enable_tickint();

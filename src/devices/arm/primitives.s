@@ -36,7 +36,8 @@
 .global do_dmb
 .global do_wfi
 .global do_nop
-
+.global clz
+	
 .text
 
 push_primask:
@@ -66,4 +67,7 @@ do_wfi:	WFI
 
 do_nop:	NOP
 	NOP
+	MOV	PC, LR
+
+clz:	CLZ	r0, r0
 	MOV	PC, LR

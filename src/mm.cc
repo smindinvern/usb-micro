@@ -31,6 +31,11 @@
 #include "mm.hh"
 #include "primitives.hh"
 
+// This is equivalent to floor(log2(val))
+int log2(unsigned int val)
+{
+    return 31 - clz(val);
+}
 unsigned int page_level(unsigned int page)
 {
 	return log2(page) + 1;

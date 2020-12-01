@@ -33,13 +33,13 @@
 
 #include "String.h"
 
-constexpr int log2(const unsigned int n)
+constexpr int const_log2(const unsigned int n)
 {
 	if (n == 0) {
 		return -1;
 	}
 	else {
-		return log2(n / 2) + 1;
+		return const_log2(n / 2) + 1;
 	}
 }
 
@@ -50,8 +50,8 @@ constexpr unsigned int exp2(const unsigned int n)
 }
 
 static const size_t PAGE_SIZE = 64;
-static const size_t NUM_PAGES = exp2(log2((size_t )((RAM_SIZE) / (PAGE_SIZE))));
-static const size_t HEAP_LEVELS = (log2(NUM_PAGES) + 1);
+static const size_t NUM_PAGES = exp2(const_log2((size_t )((RAM_SIZE) / (PAGE_SIZE))));
+static const size_t HEAP_LEVELS = (const_log2(NUM_PAGES) + 1);
 
 extern "C" {
 	void* memcpy(void* dest, const void* src, size_t count);

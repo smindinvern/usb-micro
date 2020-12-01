@@ -69,7 +69,7 @@ private:
 	char heap[node_count] {};
 	unsigned int find_free_page(unsigned int);
 	void mark_children(unsigned int, char allocated);
-	void mark_page(unsigned int, char allocated);
+	void mark_page(unsigned int, bool allocated);
 	void* address_from_page(unsigned int);
 	unsigned int page_from_address(void*);
 public:

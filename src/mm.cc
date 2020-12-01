@@ -49,6 +49,21 @@ unsigned int allocation_size(unsigned int page)
 	return (PAGE_SIZE * NUM_PAGES) / exp2(page_level(page)-1);
 }
 
+namespace MemoryMarks
+{
+    enum
+    {
+	Free = 0b00,
+	PartiallyAllocated = 0b01,
+	FullyAllocated = 0b10,
+	DirectlyAllocated = 0b11
+    };
+    bool is_fully_allocated(char mark)
+    {
+	return (mark & 0b10) != 0;
+    }
+}
+
 void* MemoryManager::address_from_page(unsigned int page)
 {
 #if 0
@@ -75,7 +90,7 @@ unsigned int MemoryManager::page_from_address(void* address)
 	offset /= PAGE_SIZE;
 	/*                        total nodes      -  offset from end of last level */
 	for (unsigned int page = NUM_PAGES + offset; page > 0; page /= 2) {
-		if (heap[page - 1] == 2) {
+	    if (heap[page - 1] == MemoryMarks::DirectlyAllocated) {
 			/* this was the allocation */
 			return page;
 		}
@@ -120,17 +135,10 @@ void* MemoryManager::allocate_memory(unsigned int size)
 	}
 	
 	// otherwise allocate the page
-	mark_page(free_page, 1);
+	mark_page(free_page, true);
 
 	// translate page number to address
-	void* address{ address_from_page(free_page) };
-	if (!address) {
-		// mark page as free and return
-		mark_page(free_page, 0);
-		return nullptr;
-	}
-
-	return address;
+	return address_from_page(free_page);
 }
 
 void MemoryManager::free_memory(void* address)
@@ -140,7 +148,38 @@ void MemoryManager::free_memory(void* address)
 		// error condition
 		return;
 	}
-	mark_page(page, 0);
+	mark_page(page, false);
+}
+
+unsigned int find_free_page(char* heap, unsigned int target_level, unsigned int current_level, unsigned int current_node)
+{
+    if (current_level > target_level)
+    {
+	return 0;
+    }
+    else if (heap[current_node - 1] == MemoryMarks::Free)
+    {
+	unsigned int remaining_levels{ target_level - current_level };
+	if (remaining_levels > 0)
+	{
+	    current_node <<= remaining_levels;
+	}
+	return current_node;
+    }
+    else if (heap[current_node - 1] == MemoryMarks::PartiallyAllocated)
+    {
+	unsigned int next_node{ find_free_page(heap, target_level, current_level + 1, current_node * 2) };
+	if (next_node == 0)
+	{
+	    next_node = find_free_page(heap, target_level, current_level + 1, (current_node * 2) + 1);
+	}
+	return next_node;
+    }
+    else
+    {
+	// Directly or fully allocated.
+	return 0;
+    }
 }
 
 // level is zero-indexed
@@ -150,19 +189,8 @@ unsigned int MemoryManager::find_free_page(unsigned int level)
 	if (level >= HEAP_LEVELS) {
 		return 0;
 	}
-	// find the start of the `level'th row of the tree
-	// node is 1-indexed, level is 0-indexed
-	unsigned int node{ exp2(level) };
-
-	// scan the row for empty slots
-	for (unsigned int i = node; i < 2 * node; i++) {
-		if (heap[i - 1] == 0) {
-			// this slot is free, so return it
-			return i;
-		}
-	}
-
-	return 0;
+	// Start at root of tree and find a path to the `level'th level that is not fully allocated.
+	return ::find_free_page(heap, level, 0, 1);
 }
 
 void MemoryManager::mark_children(unsigned int page, char allocated)
@@ -178,27 +206,34 @@ void MemoryManager::mark_children(unsigned int page, char allocated)
 	mark_children(page * 2 + 1, allocated);
 }
 
-void MemoryManager::mark_page(unsigned int page, char allocated)
+void MemoryManager::mark_page(unsigned int page, bool allocated)
 {
-	mark_children(page, allocated);
-	if (allocated) {
-		heap[page - 1] = 2;
-		page /= 2;
+    if (allocated) {
+	mark_children(page, MemoryMarks::FullyAllocated);
+	heap[page - 1] = MemoryMarks::DirectlyAllocated;
+    }
+    else {
+	mark_children(page, MemoryMarks::Free);
+	heap[page - 1] = MemoryMarks::Free;
+    }
+    // now mark ancestors
+    while (page > 1) {
+	char page_mark{ heap[page - 1] };
+	char sibling_mark{ heap[(page ^ 1U) - 1] };
+	page /= 2;
+	if (MemoryMarks::is_fully_allocated(page_mark) && MemoryMarks::is_fully_allocated(sibling_mark))
+	{
+	    heap[page - 1] = MemoryMarks::FullyAllocated;
 	}
-	// now mark ancestors
-	while (page > 0) {
-		heap[page - 1] = allocated;
-		if (!allocated) {
-			// if marking nodes freed, make sure this node's sibling is also free
-			// before moving onto the parent
-			unsigned int sibling{ page ^ 1 };
-			if (heap[sibling - 1]) {
-				// sibling is still allocated, so leave all ancestors allocated
-				break;
-			}
-		}
-		page /= 2;
+	else if (page_mark == MemoryMarks::Free && sibling_mark == MemoryMarks::Free)
+	{
+	    heap[page - 1] = MemoryMarks::Free;
 	}
+	else
+	{
+	    heap[page - 1] = MemoryMarks::PartiallyAllocated;
+	}
+    }
 }
 
 void* MemoryManager::resize(void* orig, unsigned int nu_size)
@@ -210,11 +245,11 @@ void* MemoryManager::resize(void* orig, unsigned int nu_size)
 	unsigned int orig_size = allocation_size(page);
 
 	// Mark the page as free so that we have a chance to resize in-place.
-	mark_page(page, 0);
+	mark_page(page, false);
 	void* nu = allocate_memory(nu_size);
 	if (!nu) {
 		// Restore original state.
-		mark_page(page, 1);
+		mark_page(page, true);
 		pop_primask(primask);
 		return nullptr;
 	}

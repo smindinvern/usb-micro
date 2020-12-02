@@ -36,6 +36,29 @@ public:
 	{
 	        return this->operator*();
 	}
+        void set_bits(T bits)
+	{
+	    this->operator|=(bits);
+	}
+        void clear_bits(T bits)
+	{
+	    this->operator&=(~bits);
+	}
+        void set_or_clear(T bits, bool set)
+	{
+	    if (set)
+	    {
+		set_bits(bits);
+	    }
+	    else
+	    {
+		clear_bits(bits);
+	    }
+	}
+        bool bits_set(T bits)
+	{
+	    return ((this->operator*()) & bits) == bits;
+	}
 };
 
 typedef Register<unsigned char> Reg8;
